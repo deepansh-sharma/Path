@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { connectToDatabase } from "../config/db.js";
+import Sample from "../models/Sample.js";
+import Patient from "../models/Patient.js";
+import Report from "../models/Report.js";
+import Log from "../models/Log.js";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 // Load environment variables
 dotenv.config();
@@ -979,6 +985,10 @@ async function seedDatabase() {
       Appointment.deleteMany({}),
       BackupJob.deleteMany({}),
       AuditLog.deleteMany({}),
+      Patient.deleteMany({}),
+      Sample.deleteMany({}),
+      Report.deleteMany({}),
+      Log.deleteMany({}),
     ]);
     console.log("✅ Existing data cleared");
 
@@ -986,7 +996,8 @@ async function seedDatabase() {
     console.log("🏥 Seeding labs...");
     const createdLabs = await Lab.insertMany(sampleLabs);
     console.log(`✅ Created ${createdLabs.length} labs`);
-    let password = await hashPassword("password123");
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash("password123", salt);
     // console.log(passwordHash);
     // Seed Users with hashed passwords and lab assignments
     console.log("👥 Seeding users...");
@@ -994,7 +1005,7 @@ async function seedDatabase() {
       sampleUsers.map(async (user) => {
         const userData = {
           ...user,
-          password: password,
+          password: hashedPassword,
         };
 
         // Assign labId for non-super_admin users
@@ -1302,6 +1313,104 @@ async function seedDatabase() {
     const createdAuditLogs = await AuditLog.insertMany(auditLogsWithRefs);
     console.log(`✅ Created ${createdAuditLogs.length} audit logs`);
 
+    // Seed Patients
+    console.log("👤 Seeding patients...");
+    const patientsWithRefs = samplePatients.map((patient) => {
+      const lab = createdLabs.find((l) => l.tenantId === "central-patho-lab");
+      const labAdmin = createdUsers.find(
+        (u) => u.tenantId === "central-patho-lab" && u.role === "lab_admin"
+      );
+      const fallbackUser = createdUsers[0];
+
+      return {
+        ...patient,
+        labId: lab?._id,
+        createdBy: labAdmin?._id || fallbackUser?._id,
+      };
+    });
+    const createdPatients = await Patient.insertMany(patientsWithRefs);
+    console.log(`✅ Created ${createdPatients.length} patients`);
+
+    // Seed Samples
+    console.log("🧪 Seeding samples...");
+    const samplesWithRefs = sampleSamples.map((sample) => {
+      const lab = createdLabs.find((l) => l.tenantId === "central-patho-lab");
+      const patient = createdPatients.find(
+        (p) => p.patientId === "PAT-CENTRAL-0001"
+      );
+      const technician = createdUsers.find(
+        (u) => u.email === "john.smith@centralpatholab.com"
+      );
+      const fallbackUser = createdUsers[0];
+
+      return {
+        ...sample,
+        labId: lab?._id,
+        patientId: patient?._id,
+        collectedBy: technician?._id || fallbackUser?._id,
+        collectionDetails: {
+          ...sample.collectionDetails,
+        },
+        statusLogs: (sample.statusLogs || []).map((log) => ({
+          ...log,
+          updatedBy: technician?._id || fallbackUser?._id,
+        })),
+        createdBy: technician?._id || fallbackUser?._id,
+      };
+    });
+    const createdSamples = await Sample.insertMany(samplesWithRefs);
+    console.log(`✅ Created ${createdSamples.length} samples`);
+
+    // Seed Reports
+    console.log("📊 Seeding reports...");
+    const reportsWithRefs = sampleReports.map((report) => {
+      const lab = createdLabs.find((l) => l.tenantId === "central-patho-lab");
+      const patient = createdPatients.find(
+        (p) => p.patientId === "PAT-CENTRAL-0001"
+      );
+      const sample = createdSamples.find(
+        (s) => s.sampleId === "SAMPLE-CENTRAL-0001"
+      );
+      const pathologist = createdUsers.find(
+        (u) => u.email === "admin@centralpatholab.com"
+      );
+      const technician = createdUsers.find(
+        (u) => u.email === "john.smith@centralpatholab.com"
+      );
+      const fallbackUser = createdUsers[0];
+
+      return {
+        ...report,
+        labId: lab?._id,
+        patientId: patient?._id,
+        sampleId: sample?._id,
+        results: report.results.map((result) => ({
+          ...result,
+          performedBy: technician?._id || fallbackUser?._id,
+        })),
+        generatedBy: pathologist?._id || fallbackUser?._id,
+        consultingPathologist: pathologist?._id,
+        createdBy: pathologist?._id || fallbackUser?._id,
+      };
+    });
+    const createdReports = await Report.insertMany(reportsWithRefs);
+    console.log(`✅ Created ${createdReports.length} reports`);
+
+    // Seed Logs
+    console.log("📝 Seeding logs...");
+    const logsWithRefs = sampleLogs.map((log) => {
+      const lab = createdLabs.find((l) => l.tenantId === log.tenantId);
+      const user = createdUsers.find((u) => u.email === log.entityId);
+      const fallbackUser = createdUsers[0];
+
+      return {
+        ...log,
+        userId: user?._id || fallbackUser?._id,
+      };
+    });
+    const createdLogs = await Log.insertMany(logsWithRefs);
+    console.log(`✅ Created ${createdLogs.length} logs`);
+
     console.log("\n🎉 Database seeding completed successfully!");
     console.log("\n📊 Summary:");
     console.log(`   Labs: ${createdLabs.length}`);
@@ -1313,6 +1422,10 @@ async function seedDatabase() {
     console.log(`   Appointments: ${createdAppointments.length}`);
     console.log(`   Backup Jobs: ${createdBackupJobs.length}`);
     console.log(`   Audit Logs: ${createdAuditLogs.length}`);
+    console.log(`   Patients: ${createdPatients.length}`);
+    console.log(`   Samples: ${createdSamples.length}`);
+    console.log(`   Reports: ${createdReports.length}`);
+    console.log(`   Logs: ${createdLogs.length}`);
 
     console.log("\n🔑 Default Login Credentials:");
     console.log("   Super Admin: superadmin@pathocloud.com / password123");
@@ -1360,3 +1473,163 @@ export {
   sampleBackupJobs,
   sampleAuditLogs,
 };
+
+// Sample Patients
+const samplePatients = [
+  {
+    patientId: "PAT-CENTRAL-0001",
+    name: "John Doe",
+    age: 45,
+    gender: "male",
+    phone: "5550101010",
+    email: "john.doe@example.com",
+    address: {
+      street: "123 Main St",
+      city: "New York",
+      state: "NY",
+      zip: "10001",
+      country: "USA",
+    },
+    emergencyContact: {
+      name: "Jane Doe",
+      relationship: "wife",
+      phone: "5550102020",
+    },
+    bloodGroup: "O+",
+    medicalHistory: [
+      {
+        condition: "Hypertension",
+        diagnosedDate: new Date("2020-05-15"),
+        notes: "Managed with medication",
+      },
+    ],
+    tenantId: "central-patho-lab",
+  },
+];
+
+// Sample Samples
+const sampleSamples = [
+  {
+    sampleId: "SAMPLE-CENTRAL-0001",
+    barcode: "BC-CENTRAL-001",
+    sampleType: "blood",
+    collectionDetails: {
+      site: "left arm",
+      method: "venipuncture",
+      notes: "Patient fasted for 12 hours",
+    },
+    totalAmount: 150.5,
+    tenantId: "central-patho-lab",
+    statusLogs: [
+      {
+        status: "collected",
+        timestamp: new Date("2024-01-24T09:00:00Z"),
+        notes: "Sample collected successfully",
+      },
+    ],
+    tests: [
+      {
+        testCode: "CBC",
+        testName: "Complete Blood Count",
+        category: "hematology",
+        price: 50.0,
+        urgency: "routine",
+      },
+    ],
+  },
+  {
+    sampleId: "SAMPLE-METRO-0001",
+    barcode: "BC-METRO-001",
+    sampleType: "urine",
+    collectionDetails: {
+      site: "midstream",
+      method: "clean catch",
+      notes: "First morning sample",
+    },
+    totalAmount: 75.25,
+    tenantId: "metro-diagnostic",
+    statusLogs: [
+      {
+        status: "collected",
+        timestamp: new Date("2024-01-24T10:00:00Z"),
+        notes: "Urine sample collected",
+      },
+    ],
+    tests: [
+      {
+        testCode: "URINE",
+        testName: "Urine Analysis",
+        category: "biochemistry",
+        price: 30.0,
+        urgency: "routine",
+      },
+    ],
+  },
+];
+
+// Sample Reports
+const sampleReports = [
+  {
+    labId: undefined, // to be set dynamically
+    patientId: undefined, // to be set dynamically
+    sampleId: undefined, // to be set dynamically
+    reportId: "REP-CENTRAL-0001",
+    reportNumber: "RPT-2024-0001",
+    testCategory: "hematology",
+    testCodes: ["CBC001"],
+    template: {
+      name: "CBC Report",
+      category: "hematology",
+      fields: [
+        { fieldName: "Hemoglobin", fieldType: "number", required: true },
+        { fieldName: "WBC Count", fieldType: "number", required: true },
+      ],
+    },
+    results: [
+      {
+        testCode: "CBC001",
+        testName: "Complete Blood Count (CBC)",
+        category: "hematology",
+        value: "Normal",
+        numericValue: 13.5,
+        unit: "g/dL",
+        referenceRange: { min: 12.0, max: 16.0 },
+        flag: "normal",
+        performedBy: undefined, // to be set dynamically
+        performedAt: new Date(),
+      },
+    ],
+    status: "approved",
+    priority: "routine",
+    approvals: [],
+    generatedBy: undefined, // to be set dynamically
+    reportedAt: new Date(),
+    deliveredAt: new Date(),
+    consultingPathologist: undefined, // to be set dynamically
+    files: [],
+    version: 1,
+    isAmended: false,
+    deliveryMethod: "email",
+    deliveryStatus: "delivered",
+  },
+];
+
+// Sample Logs
+const sampleLogs = [
+  {
+    tenantId: "central-patho-lab",
+    userId: undefined, // to be set dynamically
+    action: "user_login",
+    entity: "User",
+    entityId: "superadmin@pathocloud.com",
+    metadata: { ip: "192.168.1.100" },
+  },
+  {
+    tenantId: "metro-diagnostic",
+    userId: undefined, // to be set dynamically
+    action: "patient_created",
+    entity: "Patient",
+    entityId: "PAT-METRO-0001",
+    metadata: { ip: "192.168.1.101" },
+  },
+];

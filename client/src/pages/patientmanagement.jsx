@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FiPlus,
   FiSearch,
@@ -16,21 +16,26 @@ import {
   FiMapPin,
   FiX,
   FiSave,
-} from 'react-icons/fi';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { toast } from '../components/ui/Toast';
+} from "react-icons/fi";
+import DashboardLayout from "../components/layout/DashboardLayout";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Badge } from "../components/ui/Badge";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { toast } from "../components/ui/Toast";
 
 const PatientManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [patients, setPatients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterGender, setFilterGender] = useState('all');
-  const [filterAge, setFilterAge] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterGender, setFilterGender] = useState("all");
+  const [filterAge, setFilterAge] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -39,86 +44,86 @@ const PatientManagement = () => {
 
   // Form state for add/edit patient
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dateOfBirth: '',
-    gender: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    emergencyContact: '',
-    bloodGroup: '',
-    allergies: '',
-    medicalHistory: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dateOfBirth: "",
+    gender: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    emergencyContact: "",
+    bloodGroup: "",
+    allergies: "",
+    medicalHistory: "",
   });
 
   // Mock patient data
   const mockPatients = [
     {
-      id: 'P001',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@email.com',
-      phone: '+91 98765 43210',
-      dateOfBirth: '1985-06-15',
-      gender: 'Male',
-      address: '123 Main Street',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      pincode: '400001',
-      emergencyContact: '+91 98765 43211',
-      bloodGroup: 'O+',
-      allergies: 'None',
-      medicalHistory: 'Hypertension',
-      registrationDate: '2024-01-15',
-      lastVisit: '2024-12-15',
+      id: "P001",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john.doe@email.com",
+      phone: "+91 98765 43210",
+      dateOfBirth: "1985-06-15",
+      gender: "Male",
+      address: "123 Main Street",
+      city: "Mumbai",
+      state: "Maharashtra",
+      pincode: "400001",
+      emergencyContact: "+91 98765 43211",
+      bloodGroup: "O+",
+      allergies: "None",
+      medicalHistory: "Hypertension",
+      registrationDate: "2024-01-15",
+      lastVisit: "2024-12-15",
       totalTests: 12,
-      status: 'active',
+      status: "active",
     },
     {
-      id: 'P002',
-      firstName: 'Sarah',
-      lastName: 'Wilson',
-      email: 'sarah.wilson@email.com',
-      phone: '+91 87654 32109',
-      dateOfBirth: '1990-03-22',
-      gender: 'Female',
-      address: '456 Oak Avenue',
-      city: 'Delhi',
-      state: 'Delhi',
-      pincode: '110001',
-      emergencyContact: '+91 87654 32110',
-      bloodGroup: 'A+',
-      allergies: 'Penicillin',
-      medicalHistory: 'Diabetes Type 2',
-      registrationDate: '2024-02-20',
-      lastVisit: '2024-12-18',
+      id: "P002",
+      firstName: "Sarah",
+      lastName: "Wilson",
+      email: "sarah.wilson@email.com",
+      phone: "+91 87654 32109",
+      dateOfBirth: "1990-03-22",
+      gender: "Female",
+      address: "456 Oak Avenue",
+      city: "Delhi",
+      state: "Delhi",
+      pincode: "110001",
+      emergencyContact: "+91 87654 32110",
+      bloodGroup: "A+",
+      allergies: "Penicillin",
+      medicalHistory: "Diabetes Type 2",
+      registrationDate: "2024-02-20",
+      lastVisit: "2024-12-18",
       totalTests: 8,
-      status: 'active',
+      status: "active",
     },
     {
-      id: 'P003',
-      firstName: 'Michael',
-      lastName: 'Johnson',
-      email: 'michael.j@email.com',
-      phone: '+91 76543 21098',
-      dateOfBirth: '1978-11-08',
-      gender: 'Male',
-      address: '789 Pine Road',
-      city: 'Bangalore',
-      state: 'Karnataka',
-      pincode: '560001',
-      emergencyContact: '+91 76543 21099',
-      bloodGroup: 'B+',
-      allergies: 'Shellfish',
-      medicalHistory: 'None',
-      registrationDate: '2024-03-10',
-      lastVisit: '2024-12-10',
+      id: "P003",
+      firstName: "Michael",
+      lastName: "Johnson",
+      email: "michael.j@email.com",
+      phone: "+91 76543 21098",
+      dateOfBirth: "1978-11-08",
+      gender: "Male",
+      address: "789 Pine Road",
+      city: "Bangalore",
+      state: "Karnataka",
+      pincode: "560001",
+      emergencyContact: "+91 76543 21099",
+      bloodGroup: "B+",
+      allergies: "Shellfish",
+      medicalHistory: "None",
+      registrationDate: "2024-03-10",
+      lastVisit: "2024-12-10",
       totalTests: 5,
-      status: 'inactive',
+      status: "inactive",
     },
   ];
 
@@ -136,7 +141,10 @@ const PatientManagement = () => {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
     return age;
@@ -144,21 +152,22 @@ const PatientManagement = () => {
 
   // Filter patients based on search and filters
   const filteredPatients = patients.filter((patient) => {
-    const matchesSearch = 
+    const matchesSearch =
       patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.phone.includes(searchTerm) ||
       patient.id.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesGender = filterGender === 'all' || patient.gender.toLowerCase() === filterGender;
-    
+    const matchesGender =
+      filterGender === "all" || patient.gender.toLowerCase() === filterGender;
+
     const age = calculateAge(patient.dateOfBirth);
-    const matchesAge = 
-      filterAge === 'all' ||
-      (filterAge === 'child' && age < 18) ||
-      (filterAge === 'adult' && age >= 18 && age < 60) ||
-      (filterAge === 'senior' && age >= 60);
+    const matchesAge =
+      filterAge === "all" ||
+      (filterAge === "child" && age < 18) ||
+      (filterAge === "adult" && age >= 18 && age < 60) ||
+      (filterAge === "senior" && age >= 60);
 
     return matchesSearch && matchesGender && matchesAge;
   });
@@ -166,33 +175,36 @@ const PatientManagement = () => {
   // Pagination
   const indexOfLastPatient = currentPage * patientsPerPage;
   const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
-  const currentPatients = filteredPatients.slice(indexOfFirstPatient, indexOfLastPatient);
+  const currentPatients = filteredPatients.slice(
+    indexOfFirstPatient,
+    indexOfLastPatient
+  );
   const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleAddPatient = () => {
     setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      dateOfBirth: '',
-      gender: '',
-      address: '',
-      city: '',
-      state: '',
-      pincode: '',
-      emergencyContact: '',
-      bloodGroup: '',
-      allergies: '',
-      medicalHistory: '',
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+      emergencyContact: "",
+      bloodGroup: "",
+      allergies: "",
+      medicalHistory: "",
     });
     setSelectedPatient(null);
     setShowAddModal(true);
@@ -225,19 +237,26 @@ const PatientManagement = () => {
   };
 
   const handleDeletePatient = (patientId) => {
-    toast.error(`Delete patient ${patientId} - This would show a confirmation dialog`);
+    toast.error(
+      `Delete patient ${patientId} - This would show a confirmation dialog`
+    );
   };
 
   const handleSavePatient = () => {
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-      toast.error('Please fill in all required fields');
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.email ||
+      !formData.phone
+    ) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
     if (selectedPatient) {
       toast.success(`Patient ${selectedPatient.id} updated successfully`);
     } else {
-      toast.success('New patient added successfully');
+      toast.success("New patient added successfully");
     }
     setShowAddModal(false);
   };
@@ -260,7 +279,7 @@ const PatientManagement = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {selectedPatient ? 'Edit Patient' : 'Add New Patient'}
+                  {selectedPatient ? "Edit Patient" : "Add New Patient"}
                 </h2>
                 <Button
                   variant="outline"
@@ -468,7 +487,7 @@ const PatientManagement = () => {
                 </Button>
                 <Button onClick={handleSavePatient}>
                   <FiSave className="w-4 h-4 mr-2" />
-                  {selectedPatient ? 'Update Patient' : 'Add Patient'}
+                  {selectedPatient ? "Update Patient" : "Add Patient"}
                 </Button>
               </div>
             </div>
@@ -495,7 +514,9 @@ const PatientManagement = () => {
           >
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Patient Details</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Patient Details
+                </h2>
                 <Button
                   variant="outline"
                   size="sm"
@@ -514,7 +535,9 @@ const PatientManagement = () => {
                     <div className="flex items-center space-x-2">
                       <FiUser className="w-4 h-4 text-gray-500" />
                       <span className="font-medium">Name:</span>
-                      <span>{selectedPatient.firstName} {selectedPatient.lastName}</span>
+                      <span>
+                        {selectedPatient.firstName} {selectedPatient.lastName}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <FiMail className="w-4 h-4 text-gray-500" />
@@ -529,7 +552,9 @@ const PatientManagement = () => {
                     <div className="flex items-center space-x-2">
                       <FiCalendar className="w-4 h-4 text-gray-500" />
                       <span className="font-medium">Age:</span>
-                      <span>{calculateAge(selectedPatient.dateOfBirth)} years</span>
+                      <span>
+                        {calculateAge(selectedPatient.dateOfBirth)} years
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">Gender:</span>
@@ -537,7 +562,9 @@ const PatientManagement = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">Blood Group:</span>
-                      <Badge variant="secondary">{selectedPatient.bloodGroup}</Badge>
+                      <Badge variant="secondary">
+                        {selectedPatient.bloodGroup}
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -552,8 +579,10 @@ const PatientManagement = () => {
                       <div>
                         <span className="font-medium">Address:</span>
                         <div className="text-sm text-gray-600">
-                          {selectedPatient.address}<br />
-                          {selectedPatient.city}, {selectedPatient.state} - {selectedPatient.pincode}
+                          {selectedPatient.address}
+                          <br />
+                          {selectedPatient.city}, {selectedPatient.state} -{" "}
+                          {selectedPatient.pincode}
                         </div>
                       </div>
                     </div>
@@ -572,11 +601,15 @@ const PatientManagement = () => {
                   <CardContent className="space-y-3">
                     <div>
                       <span className="font-medium">Allergies:</span>
-                      <p className="text-sm text-gray-600 mt-1">{selectedPatient.allergies || 'None'}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {selectedPatient.allergies || "None"}
+                      </p>
                     </div>
                     <div>
                       <span className="font-medium">Medical History:</span>
-                      <p className="text-sm text-gray-600 mt-1">{selectedPatient.medicalHistory || 'None'}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {selectedPatient.medicalHistory || "None"}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -600,11 +633,19 @@ const PatientManagement = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">Total Tests:</span>
-                      <Badge variant="secondary">{selectedPatient.totalTests}</Badge>
+                      <Badge variant="secondary">
+                        {selectedPatient.totalTests}
+                      </Badge>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">Status:</span>
-                      <Badge variant={selectedPatient.status === 'active' ? 'success' : 'destructive'}>
+                      <Badge
+                        variant={
+                          selectedPatient.status === "active"
+                            ? "success"
+                            : "destructive"
+                        }
+                      >
                         {selectedPatient.status}
                       </Badge>
                     </div>
@@ -620,9 +661,7 @@ const PatientManagement = () => {
                   <FiEdit className="w-4 h-4 mr-2" />
                   Edit Patient
                 </Button>
-                <Button onClick={() => setShowViewModal(false)}>
-                  Close
-                </Button>
+                <Button onClick={() => setShowViewModal(false)}>Close</Button>
               </div>
             </div>
           </motion.div>
@@ -652,8 +691,12 @@ const PatientManagement = () => {
           className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Patient Management</h1>
-            <p className="text-gray-600 mt-1">Manage patient records, history, and information</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Patient Management
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage patient records, history, and information
+            </p>
           </div>
           <div className="flex space-x-3">
             <Button variant="outline" className="flex items-center space-x-2">
@@ -664,7 +707,10 @@ const PatientManagement = () => {
               <FiDownload className="w-4 h-4" />
               <span>Export</span>
             </Button>
-            <Button onClick={handleAddPatient} className="flex items-center space-x-2">
+            <Button
+              onClick={handleAddPatient}
+              className="flex items-center space-x-2"
+            >
               <FiPlus className="w-4 h-4" />
               <span>Add Patient</span>
             </Button>
@@ -729,7 +775,9 @@ const PatientManagement = () => {
               <div className="flex justify-between items-center">
                 <CardTitle>Patients ({filteredPatients.length})</CardTitle>
                 <div className="text-sm text-gray-600">
-                  Showing {indexOfFirstPatient + 1}-{Math.min(indexOfLastPatient, filteredPatients.length)} of {filteredPatients.length}
+                  Showing {indexOfFirstPatient + 1}-
+                  {Math.min(indexOfLastPatient, filteredPatients.length)} of{" "}
+                  {filteredPatients.length}
                 </div>
               </div>
             </CardHeader>
@@ -738,14 +786,30 @@ const PatientManagement = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Patient ID</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Contact</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Age/Gender</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Blood Group</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Last Visit</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Patient ID
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Name
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Contact
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Age/Gender
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Blood Group
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Last Visit
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Status
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -765,29 +829,49 @@ const PatientManagement = () => {
                             <div className="font-medium text-gray-900">
                               {patient.firstName} {patient.lastName}
                             </div>
-                            <div className="text-sm text-gray-500">{patient.city}, {patient.state}</div>
+                            <div className="text-sm text-gray-500">
+                              {patient.city}, {patient.state}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 px-4">
                           <div>
-                            <div className="text-sm text-gray-900">{patient.email}</div>
-                            <div className="text-sm text-gray-500">{patient.phone}</div>
+                            <div className="text-sm text-gray-900">
+                              {patient.email}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {patient.phone}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 px-4">
                           <div>
-                            <div className="text-sm text-gray-900">{calculateAge(patient.dateOfBirth)} years</div>
-                            <div className="text-sm text-gray-500">{patient.gender}</div>
+                            <div className="text-sm text-gray-900">
+                              {calculateAge(patient.dateOfBirth)} years
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {patient.gender}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <Badge variant="secondary">{patient.bloodGroup}</Badge>
+                          <Badge variant="secondary">
+                            {patient.bloodGroup}
+                          </Badge>
                         </td>
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{patient.lastVisit}</div>
+                          <div className="text-sm text-gray-600">
+                            {patient.lastVisit}
+                          </div>
                         </td>
                         <td className="py-4 px-4">
-                          <Badge variant={patient.status === 'active' ? 'success' : 'destructive'}>
+                          <Badge
+                            variant={
+                              patient.status === "active"
+                                ? "success"
+                                : "destructive"
+                            }
+                          >
                             {patient.status}
                           </Badge>
                         </td>
@@ -832,7 +916,9 @@ const PatientManagement = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                       disabled={currentPage === 1}
                     >
                       Previous
@@ -840,7 +926,9 @@ const PatientManagement = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
                       disabled={currentPage === totalPages}
                     >
                       Next

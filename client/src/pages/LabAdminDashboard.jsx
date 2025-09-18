@@ -21,9 +21,13 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { toast } from '../components/ui/Toast';
+import axios from 'axios';
 
 const LabAdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('7d');
   const [recentActivities, setRecentActivities] = useState([]);
   const [pendingTasks, setPendingTasks] = useState([]);
@@ -437,3 +441,22 @@ const LabAdminDashboard = () => {
 };
 
 export default LabAdminDashboard;
+
+const fetchDashboardData = async () => {
+  try {
+    setIsLoading(true);
+    setError(null);
+    // Fetch department stats
+    const statsRes = await axios.get('/api/departments/stats');
+    setStats(statsRes.data);
+    // Fetch department overview
+    const overviewRes = await axios.get('/api/departments/overview');
+    setOverview(overviewRes.data);
+  } catch (err) {
+    setError(err.response?.data?.error || 'Failed to fetch dashboard data');
+    toast.error(err.response?.data?.error || 'Failed to fetch dashboard data');
+  } finally {
+    setIsLoading(false);
+  }
+};
+fetchDashboardData();

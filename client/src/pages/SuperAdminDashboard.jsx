@@ -22,72 +22,54 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { toast } from '../components/ui/Toast';
+import axios from 'axios';
 
 const SuperAdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [labs, setLabs] = useState([]);
+  // Stats from backend
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddLabModal, setShowAddLabModal] = useState(false);
 
-  // Mock data - replace with actual API calls
-  const mockStats = {
-    totalLabs: 156,
-    activeLabs: 142,
-    totalRevenue: 2450000,
-    monthlyGrowth: 12.5,
-    totalUsers: 1247,
-    activeSubscriptions: 134,
-  };
-
-  const mockLabs = [
-    {
-      id: 1,
-      name: 'HealthPlus Diagnostics',
-      email: 'admin@healthplus.com',
-      phone: '+91 98765 43210',
-      plan: 'Premium',
-      status: 'active',
-      revenue: 45000,
-      users: 25,
-      joinDate: '2024-01-15',
-      lastActive: '2024-12-20',
-      location: 'Mumbai, Maharashtra',
-    },
-    {
-      id: 2,
-      name: 'MediCore Labs',
-      email: 'contact@medicore.com',
-      phone: '+91 87654 32109',
-      plan: 'Standard',
-      status: 'active',
-      revenue: 28000,
-      users: 15,
-      joinDate: '2024-02-20',
-      lastActive: '2024-12-19',
-      location: 'Delhi, NCR',
-    },
-    {
-      id: 3,
-      name: 'CityPath Diagnostics',
-      email: 'info@citypath.com',
-      phone: '+91 76543 21098',
-      plan: 'Basic',
-      status: 'inactive',
-      revenue: 12000,
-      users: 8,
-      joinDate: '2024-03-10',
-      lastActive: '2024-12-10',
-      location: 'Bangalore, Karnataka',
-    },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        // Fetch metrics overview
+        const metricsRes = await axios.get('/api/superAdmin/metrics/overview');
+        setStats(metricsRes.data);
+        // Fetch labs list
+        const labsRes = await axios.get('/api/superAdmin/labs');
+        setLabs(labsRes.data);
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to fetch dashboard data');
+        toast.error(err.response?.data?.error || 'Failed to fetch dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setLabs(mockLabs);
-      setIsLoading(false);
-    }, 1000);
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const res = await axios.get('/api/superadmin/overview');
+        setStats(res.data);
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to fetch dashboard stats');
+        toast.error(err.response?.data?.error || 'Failed to fetch dashboard stats');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
   }, []);
 
   const filteredLabs = labs.filter((lab) => {
@@ -152,6 +134,16 @@ const SuperAdminDashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-red-600 font-bold">{error}</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -179,46 +171,36 @@ const SuperAdminDashboard = () => {
         </motion.div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Labs"
-            value={mockStats.totalLabs}
-            icon={FiBriefcase}
-            trend={8.2}
+            value={stats?.totalLabs ?? 0}
+            icon={FiUsers}
+            trend="up"
+            trendValue={8.2}
           />
           <StatCard
             title="Active Labs"
-            value={mockStats.activeLabs}
+            value={stats?.activeLabs ?? 0}
             icon={FiActivity}
-            trend={5.1}
-            color="green"
-          />
-          <StatCard
-            title="Total Revenue"
-            value={`₹${(mockStats.totalRevenue / 100000).toFixed(1)}L`}
-            icon={FiDollarSign}
-            trend={mockStats.monthlyGrowth}
+            trend="up"
+            trendValue={12.5}
             color="blue"
           />
           <StatCard
-            title="Total Users"
-            value={mockStats.totalUsers}
-            icon={FiUsers}
-            trend={15.3}
-            color="purple"
-          />
-          <StatCard
-            title="Active Subscriptions"
-            value={mockStats.activeSubscriptions}
-            icon={FiSettings}
-            trend={7.8}
+            title="Inactive Labs"
+            value={stats?.inactiveLabs ?? 0}
+            icon={FiFileText}
+            trend="down"
+            trendValue={5.1}
             color="orange"
           />
           <StatCard
-            title="Monthly Growth"
-            value={`${mockStats.monthlyGrowth}%`}
-            icon={FiTrendingUp}
-            trend={2.4}
+            title="Total Revenue"
+            value={`₹${(stats?.totalRevenue ?? 0).toLocaleString()}`}
+            icon={FiDollarSign}
+            trend="up"
+            trendValue={15.3}
             color="green"
           />
         </div>

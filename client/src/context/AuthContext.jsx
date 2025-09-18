@@ -1,14 +1,18 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { showToast } from '../components/ui/Toast';
+import React, { createContext, useContext, useReducer, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 // Auth action types
 const AUTH_ACTIONS = {
-  LOGIN_START: 'LOGIN_START',
-  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGIN_FAILURE: 'LOGIN_FAILURE',
-  LOGOUT: 'LOGOUT',
-  SET_USER: 'SET_USER',
-  CLEAR_ERROR: 'CLEAR_ERROR',
+  LOGIN_START: "LOGIN_START",
+  LOGIN_SUCCESS: "LOGIN_SUCCESS",
+  LOGIN_FAILURE: "LOGIN_FAILURE",
+  REGISTER_START: "REGISTER_START",
+  REGISTER_SUCCESS: "REGISTER_SUCCESS",
+  REGISTER_FAILURE: "REGISTER_FAILURE",
+  LOGOUT: "LOGOUT",
+  SET_USER: "SET_USER",
+  CLEAR_ERROR: "CLEAR_ERROR",
 };
 
 // Initial auth state
@@ -24,13 +28,15 @@ const initialState = {
 const authReducer = (state, action) => {
   switch (action.type) {
     case AUTH_ACTIONS.LOGIN_START:
+    case AUTH_ACTIONS.REGISTER_START:
       return {
         ...state,
         isLoading: true,
         error: null,
       };
-    
+
     case AUTH_ACTIONS.LOGIN_SUCCESS:
+    case AUTH_ACTIONS.REGISTER_SUCCESS:
       return {
         ...state,
         user: action.payload.user,
@@ -39,8 +45,9 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: null,
       };
-    
+
     case AUTH_ACTIONS.LOGIN_FAILURE:
+    case AUTH_ACTIONS.REGISTER_FAILURE:
       return {
         ...state,
         user: null,
@@ -49,12 +56,12 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: action.payload,
       };
-    
+
     case AUTH_ACTIONS.LOGOUT:
       return {
         ...initialState,
       };
-    
+
     case AUTH_ACTIONS.SET_USER:
       return {
         ...state,
@@ -62,13 +69,13 @@ const authReducer = (state, action) => {
         token: action.payload.token,
         isAuthenticated: true,
       };
-    
+
     case AUTH_ACTIONS.CLEAR_ERROR:
       return {
         ...state,
         error: null,
       };
-    
+
     default:
       return state;
   }
@@ -83,9 +90,9 @@ export const AuthProvider = ({ children }) => {
 
   // Check for existing token on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
+
     if (token && userData) {
       try {
         const user = JSON.parse(userData);
@@ -94,39 +101,29 @@ export const AuthProvider = ({ children }) => {
           payload: { user, token },
         });
       } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        console.error("Error parsing stored user data:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
       }
     }
   }, []);
 
   // Login function
-  const login = async (credentials, userType = 'lab') => {
+  const login = async (credentials, userType = "lab") => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
     try {
-      // Simulate API call - replace with actual API endpoint
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...credentials,
-          userType,
-        }),
+      const response = await axios.post("/api/auth/login", {
+        ...credentials,
+        userType,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
+      const { data } = response.data;
+      console.log(data);
 
       // Store token and user data
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -136,29 +133,67 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      showToast.success('Login Successful', `Welcome back, ${data.user.name}!`);
-      
+      toast.success(`Welcome back, ${data.name}!`);
+
       return { success: true, user: data.user };
     } catch (error) {
+      const message = error.response?.data?.message || error.message;
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: error.message,
+        payload: message,
       });
 
-      showToast.error('Login Failed', error.message);
-      
-      return { success: false, error: error.message };
+      toast.error(message);
+
+      return { success: false, error: message };
+    }
+  };
+
+  // Register function
+  const register = async (credentials) => {
+    dispatch({ type: AUTH_ACTIONS.REGISTER_START });
+
+    try {
+      const response = await axios.post("/api/auth/register", credentials);
+
+      const { data } = response.data;
+
+      // Store token and user data
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_SUCCESS,
+        payload: {
+          user: data.user,
+          token: data.token,
+        },
+      });
+
+      toast.success(`Welcome, ${data.user.name}!`);
+
+      return { success: true, user: data.user };
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      dispatch({
+        type: AUTH_ACTIONS.REGISTER_FAILURE,
+        payload: message,
+      });
+
+      toast.error(message);
+
+      return { success: false, error: message };
     }
   };
 
   // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    
-    showToast.info('Logged Out', 'You have been successfully logged out.');
+
+    toast.info("You have been successfully logged out.");
   };
 
   // Clear error function
@@ -179,35 +214,31 @@ export const AuthProvider = ({ children }) => {
   // Get user permissions based on role
   const getPermissions = () => {
     const rolePermissions = {
-      'super-admin': [
-        'manage-labs',
-        'manage-subscriptions',
-        'view-global-analytics',
-        'manage-users',
+      "super-admin": [
+        "manage-labs",
+        "manage-subscriptions",
+        "view-global-analytics",
+        "manage-users",
       ],
-      'lab-admin': [
-        'manage-lab-staff',
-        'manage-patients',
-        'manage-samples',
-        'manage-reports',
-        'manage-invoices',
-        'view-lab-analytics',
-        'configure-lab',
+      "lab-admin": [
+        "manage-lab-staff",
+        "manage-patients",
+        "manage-samples",
+        "manage-reports",
+        "manage-invoices",
+        "view-lab-analytics",
+        "configure-lab",
       ],
-      'technician': [
-        'manage-samples',
-        'create-reports',
-        'view-patients',
+      technician: ["manage-samples", "create-reports", "view-patients"],
+      receptionist: [
+        "manage-patients",
+        "schedule-appointments",
+        "view-invoices",
       ],
-      'receptionist': [
-        'manage-patients',
-        'schedule-appointments',
-        'view-invoices',
-      ],
-      'finance': [
-        'manage-invoices',
-        'view-payments',
-        'generate-financial-reports',
+      finance: [
+        "manage-invoices",
+        "view-payments",
+        "generate-financial-reports",
       ],
     };
 
@@ -223,6 +254,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
+    register,
     logout,
     clearError,
     hasRole,
@@ -231,21 +263,17 @@ export const AuthProvider = ({ children }) => {
     getPermissions,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  
+
   return context;
 };
 
@@ -253,11 +281,14 @@ export const useAuth = () => {
 export const withAuth = (Component, requiredRoles = []) => {
   return function AuthenticatedComponent(props) {
     const { isAuthenticated, hasAnyRole } = useAuth();
-    
-    if (!isAuthenticated || (requiredRoles.length > 0 && !hasAnyRole(requiredRoles))) {
+
+    if (
+      !isAuthenticated ||
+      (requiredRoles.length > 0 && !hasAnyRole(requiredRoles))
+    ) {
       return <div>Access denied</div>;
     }
-    
+
     return <Component {...props} />;
   };
 };

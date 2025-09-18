@@ -1,40 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "../context/AuthContext";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "../components/ui/Card";
-import { LoadingSpinner } from "../components/ui/LoadingSpinner";
-import {
-  FiUser,
-  FiLock,
-  FiEye,
-  FiEyeOff,
-  FiShield,
-  FiUsers,
-  FiActivity,
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { 
+  FiUser, 
+  FiLock, 
+  FiEye, 
+  FiEyeOff, 
   FiMail,
   FiArrowRight,
   FiAlertTriangle,
-} from "react-icons/fi";
-import { Link, useNavigate } from "react-router-dom";
+  FiActivity
+} from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
 
-const Login = () => {
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
+const Register = () => {
+  const { register, isLoading, error, clearError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("lab-admin");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
 
   // Clear errors when component unmounts
@@ -42,47 +35,36 @@ const Login = () => {
     return () => {
       clearError();
     };
-  }, []);
+  }, [clearError]);
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
-
-  const userTypes = [
-    {
-      id: "super-admin",
-      title: "Super Admin",
-      description: "Manage all labs and subscriptions",
-      icon: FiShield,
-    },
-    {
-      id: "lab-admin",
-      title: "Lab Admin",
-      description: "Manage your pathology lab",
-      icon: FiUsers,
-    },
-    {
-      id: "staff",
-      title: "Staff",
-      description: "Access lab operations",
-      icon: FiActivity,
-    },
-  ];
 
   const validateForm = () => {
     const errors = {};
 
-    if (!formData.email) {
-      errors.email = "Email is required";
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = "Please enter a valid email address";
+      errors.email = 'Please enter a valid email address';
     }
 
     if (!formData.password) {
-      errors.password = "Password is required";
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
 
     setValidationErrors(errors);
@@ -92,23 +74,27 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
-
+    
     if (!validateForm()) {
       return;
     }
 
-    await login(formData, selectedRole);
+    await register({ 
+      name: formData.name, 
+      email: formData.email, 
+      password: formData.password 
+    });
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
     // Clear validation error on input change
     if (validationErrors[name]) {
-      setValidationErrors((prev) => ({
+      setValidationErrors(prev => ({
         ...prev,
         [name]: null,
       }));
@@ -144,72 +130,18 @@ const Login = () => {
           <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
             <FiActivity className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">PathoSaaS</h1>
+          <h1 className="text-3xl font-bold text-gray-800">
+            Create an Account
+          </h1>
           <p className="text-gray-500">
-            Sign in to your pathology lab management system
+            Join PathoSaaS and streamline your lab operations.
           </p>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="space-y-3">
-          <label className="text-sm font-medium text-gray-700">
-            Select Your Role
-          </label>
-          <div className="grid grid-cols-1 gap-3">
-            {userTypes.map((type) => {
-              const IconComponent = type.icon;
-              return (
-                <motion.button
-                  key={type.id}
-                  type="button"
-                  onClick={() => setSelectedRole(type.id)}
-                  className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
-                    selectedRole === type.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg bg-blue-100`}>
-                      <IconComponent className={`w-5 h-5 text-blue-600`} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">
-                        {type.title}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {type.description}
-                      </p>
-                    </div>
-                    {selectedRole === type.id && (
-                      <motion.div
-                        layoutId="role-indicator"
-                        className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center"
-                      >
-                        <div className="w-2 h-2 bg-white rounded-full" />
-                      </motion.div>
-                    )}
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
         </motion.div>
 
         <motion.div variants={itemVariants}>
           <Card className="shadow-lg border-gray-200">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-center text-gray-800">
-                Welcome Back
-              </CardTitle>
-              <CardDescription className="text-center text-gray-500">
-                Enter your credentials to access your account
-              </CardDescription>
-            </CardHeader>
-
             <form onSubmit={handleSubmit}>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <AnimatePresence>
                   {error && (
                     <motion.div
@@ -228,6 +160,20 @@ const Login = () => {
 
                 <div className="space-y-2">
                   <Input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter your full name"
+                    leftIcon={<FiUser />}
+                    error={validationErrors.name}
+                    disabled={isLoading}
+                    label="Full Name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
                     type="email"
                     name="email"
                     value={formData.email}
@@ -242,11 +188,11 @@ const Login = () => {
 
                 <div className="space-y-2">
                   <Input
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Enter your password"
+                    placeholder="Create a password (min. 8 characters)"
                     leftIcon={<FiLock />}
                     rightIcon={showPassword ? <FiEyeOff /> : <FiEye />}
                     onRightIconClick={() => setShowPassword(!showPassword)}
@@ -256,13 +202,20 @@ const Login = () => {
                   />
                 </div>
 
-                <div className="text-right">
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                  >
-                    Forgot your password?
-                  </Link>
+                <div className="space-y-2">
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Confirm your password"
+                    leftIcon={<FiLock />}
+                    rightIcon={showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                    onRightIconClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    error={validationErrors.confirmPassword}
+                    disabled={isLoading}
+                    label="Confirm Password"
+                  />
                 </div>
               </CardContent>
 
@@ -276,20 +229,20 @@ const Login = () => {
                   {isLoading ? (
                     <>
                       <LoadingSpinner size="sm" className="mr-2" />
-                      Signing In...
+                      Creating Account...
                     </>
                   ) : (
-                    "Sign In"
+                    'Register'
                   )}
                 </Button>
 
                 <div className="text-center text-sm text-gray-500">
-                  Don't have an account?{" "}
+                  Already have an account?{' '}
                   <Link
-                    to="/register"
+                    to="/login"
                     className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
                   >
-                    Sign Up
+                    Sign In
                   </Link>
                 </div>
               </CardFooter>
@@ -297,10 +250,7 @@ const Login = () => {
           </Card>
         </motion.div>
 
-        <motion.div
-          variants={itemVariants}
-          className="text-center text-sm text-gray-500"
-        >
+        <motion.div variants={itemVariants} className="text-center text-sm text-gray-500">
           <p>© {new Date().getFullYear()} PathoSaaS. All rights reserved.</p>
         </motion.div>
       </motion.div>
@@ -308,4 +258,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

@@ -45,48 +45,14 @@ router.post("/seed-superadmin", async (req, res) => {
 });
 
 // Login
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body || {};
-  const user = await User.findOne({ email, isActive: true }).select(
-    "+password"
-  );
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
-  const ok = await verifyPassword(password, user.password);
-  if (!ok) return res.status(401).json({ error: "Invalid credentials" });
-
-  const token = jwt.sign(
-    { userId: user._id.toString(), role: user.role, tenantId: user.tenantId },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "8h",
-    }
-  );
-  console.log({
-    token,
-    role: user.role,
-    tenantId: user.tenantId,
-    name: user.name,
-    success: true,
-  });
-  return res.json({
-    data: {
-      token,
-      role: user.role,
-      tenantId: user.tenantId,
-      name: user.name,
-      success: true,
-    },
-  });
-});
+router.post("/login", authRateLimit(5, 15 * 60 * 1000), login);
 
 // New comprehensive authentication routes
 
 // User registration
 router.post("/register", authRateLimit(5, 15 * 60 * 1000), register);
 
-// Enhanced login (keeping legacy for backward compatibility)
-router.post("/login-v2", authRateLimit(5, 15 * 60 * 1000), login);
+
 
 // Forgot password
 router.post(

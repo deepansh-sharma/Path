@@ -1,10 +1,14 @@
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import User from '../models/User.js';
-import Lab from '../models/Lab.js';
-import { generateToken } from '../middleware/auth.js';
-import { sendEmail } from '../utils/emailService.js';
-import { validateEmail, validatePassword, validatePhone } from '../utils/validation.js';
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import User from "../models/User.js";
+import Lab from "../models/Lab.js";
+import { generateToken } from "../middleware/auth.js";
+import { sendEmail } from "../utils/emailService.js";
+import {
+  validateEmail,
+  validatePassword,
+  validatePhone,
+} from "../utils/validation.js";
 
 // Register new user
 export const register = async (req, res) => {
@@ -14,52 +18,53 @@ export const register = async (req, res) => {
       email,
       password,
       phone,
-      role = 'staff',
+      role = "staff",
       labId,
-      permissions = []
+      permissions = [],
     } = req.body;
 
     // Validation
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Name, email, and password are required'
+        message: "Name, email, and password are required",
       });
     }
 
     if (!validateEmail(email)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid email format'
+        message: "Invalid email format",
       });
     }
 
     if (!validatePassword(password)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character'
+        message:
+          "Password must be at least 8 characters with uppercase, lowercase, number, and special character",
       });
     }
+    // Hash the password before creating the user
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     if (phone && !validatePhone(phone)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid phone number format'
+        message: "Invalid phone number format",
       });
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        ...(phone ? [{ phone }] : [])
-      ]
+      $or: [{ email: email.toLowerCase() }, ...(phone ? [{ phone }] : [])],
     });
 
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: 'User with this email or phone already exists'
+        message: "User with this email or phone already exists",
       });
     }
 
@@ -69,15 +74,15 @@ export const register = async (req, res) => {
       if (!lab) {
         return res.status(404).json({
           success: false,
-          message: 'Lab not found'
+          message: "Lab not found",
         });
       }
 
       // Check if lab subscription is active
-      if (lab.subscription.status !== 'active') {
+      if (lab.subscription.status !== "active") {
         return res.status(403).json({
           success: false,
-          message: 'Cannot register users for inactive lab subscription'
+          message: "Cannot register users for inactive lab subscription",
         });
       }
     }
@@ -86,12 +91,12 @@ export const register = async (req, res) => {
     const user = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      password, // Will be hashed by pre-save hook
+      password: hashedPassword, // Will be hashed by pre-save hook
       phone: phone?.trim(),
       role,
       labId,
       permissions,
-      isActive: true
+      isActive: true,
     });
 
     await user.save();
@@ -107,19 +112,16 @@ export const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      data: {
-        user: userResponse,
-        token
-      }
+      message: "User registered successfully",
+      user: userResponse,
+      token,
     });
-
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
-      message: 'Registration failed',
-      error: error.message
+      message: "Registration failed",
+      error: error.message,
     });
   }
 };
@@ -128,12 +130,12 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password, phone } = req.body;
-
+    console.log(password);
     // Validation
     if ((!email && !phone) || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email/phone and password are required'
+        message: "Email/phone and password are required",
       });
     }
 
@@ -146,12 +148,13 @@ export const login = async (req, res) => {
     }
 
     const user = await User.findOne(query)
-      .populate('labId', 'name subscription.plan subscription.status');
+      .select("+password")
+      .populate("labId", "name subscription.plan subscription.status");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: "Invalid credentials",
       });
     }
 
@@ -159,26 +162,25 @@ export const login = async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Account is deactivated'
+        message: "Account is deactivated",
       });
     }
 
     // Verify password
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
     }
 
     // Check lab subscription status (except for super admin)
-    if (user.role !== 'super_admin' && user.labId) {
+    if (user.role !== "super_admin" && user.labId) {
       const lab = await Lab.findById(user.labId);
-      if (!lab || lab.subscription.status !== 'active') {
+      if (!lab || lab.subscription.status !== "active") {
         return res.status(403).json({
           success: false,
-          message: 'Lab subscription is not active'
+          message: "Lab subscription is not active",
         });
       }
     }
@@ -194,22 +196,26 @@ export const login = async (req, res) => {
     delete userResponse.passwordHash;
     delete userResponse.resetPasswordToken;
     delete userResponse.resetPasswordExpires;
-
-    res.json({
+    console.log({
       success: true,
-      message: 'Login successful',
-      data: {
-        user: userResponse,
-        token
-      }
+      message: "Login successful",
+      user: userResponse,
+      token,
     });
-
+    res.json({
+      data: {
+        success: true,
+        message: "Login successful",
+        user: userResponse,
+        token,
+      },
+    });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Login failed',
-      error: error.message
+      message: "Login failed",
+      error: error.message,
     });
   }
 };
@@ -218,27 +224,26 @@ export const login = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate('labId', 'name subscription.plan subscription.status')
-      .select('-passwordHash -resetPasswordToken -resetPasswordExpires');
+      .populate("labId", "name subscription.plan subscription.status")
+      .select("-passwordHash -resetPasswordToken -resetPasswordExpires");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     res.json({
       success: true,
-      data: { user }
+      data: { user },
     });
-
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error("Get profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get profile',
-      error: error.message
+      message: "Failed to get profile",
+      error: error.message,
     });
   }
 };
@@ -253,14 +258,14 @@ export const updateProfile = async (req, res) => {
     if (email && !validateEmail(email)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid email format'
+        message: "Invalid email format",
       });
     }
 
     if (phone && !validatePhone(phone)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid phone number format'
+        message: "Invalid phone number format",
       });
     }
 
@@ -268,7 +273,7 @@ export const updateProfile = async (req, res) => {
     if (email || phone) {
       const query = {
         _id: { $ne: userId },
-        $or: []
+        $or: [],
       };
 
       if (email) query.$or.push({ email: email.toLowerCase().trim() });
@@ -278,7 +283,7 @@ export const updateProfile = async (req, res) => {
       if (existingUser) {
         return res.status(409).json({
           success: false,
-          message: 'Email or phone already exists'
+          message: "Email or phone already exists",
         });
       }
     }
@@ -289,26 +294,24 @@ export const updateProfile = async (req, res) => {
     if (email) updateData.email = email.toLowerCase().trim();
     if (phone) updateData.phone = phone.trim();
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate('labId', 'name subscription.plan subscription.status')
-      .select('-passwordHash -resetPasswordToken -resetPasswordExpires');
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("labId", "name subscription.plan subscription.status")
+      .select("-passwordHash -resetPasswordToken -resetPasswordExpires");
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
-      data: { user }
+      message: "Profile updated successfully",
+      data: { user },
     });
-
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update profile',
-      error: error.message
+      message: "Failed to update profile",
+      error: error.message,
     });
   }
 };
@@ -323,14 +326,15 @@ export const changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required'
+        message: "Current password and new password are required",
       });
     }
 
     if (!validatePassword(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'New password must be at least 8 characters with uppercase, lowercase, number, and special character'
+        message:
+          "New password must be at least 8 characters with uppercase, lowercase, number, and special character",
       });
     }
 
@@ -339,7 +343,7 @@ export const changePassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -348,7 +352,7 @@ export const changePassword = async (req, res) => {
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: 'Current password is incorrect'
+        message: "Current password is incorrect",
       });
     }
 
@@ -358,15 +362,14 @@ export const changePassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password changed successfully'
+      message: "Password changed successfully",
     });
-
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to change password',
-      error: error.message
+      message: "Failed to change password",
+      error: error.message,
     });
   }
 };
@@ -379,7 +382,7 @@ export const forgotPassword = async (req, res) => {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required'
+        message: "Email is required",
       });
     }
 
@@ -388,13 +391,16 @@ export const forgotPassword = async (req, res) => {
       // Don't reveal if user exists or not
       return res.json({
         success: true,
-        message: 'If the email exists, a password reset link has been sent'
+        message: "If the email exists, a password reset link has been sent",
       });
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
     // Save reset token to user
     user.resetPasswordToken = resetTokenHash;
@@ -403,20 +409,20 @@ export const forgotPassword = async (req, res) => {
 
     // Send reset email
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    
+
     try {
       await sendEmail({
         to: user.email,
-        subject: 'Password Reset Request',
-        template: 'password-reset',
+        subject: "Password Reset Request",
+        template: "password-reset",
         data: {
           name: user.name,
           resetUrl,
-          expiresIn: '10 minutes'
-        }
+          expiresIn: "10 minutes",
+        },
       });
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
+      console.error("Email sending error:", emailError);
       // Reset the token if email fails
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
@@ -424,21 +430,20 @@ export const forgotPassword = async (req, res) => {
 
       return res.status(500).json({
         success: false,
-        message: 'Failed to send reset email'
+        message: "Failed to send reset email",
       });
     }
 
     res.json({
       success: true,
-      message: 'Password reset link sent to your email'
+      message: "Password reset link sent to your email",
     });
-
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process password reset request',
-      error: error.message
+      message: "Failed to process password reset request",
+      error: error.message,
     });
   }
 };
@@ -451,30 +456,34 @@ export const resetPassword = async (req, res) => {
     if (!token || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Token and new password are required'
+        message: "Token and new password are required",
       });
     }
 
     if (!validatePassword(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character'
+        message:
+          "Password must be at least 8 characters with uppercase, lowercase, number, and special character",
       });
     }
 
     // Hash the token to compare with stored hash
-    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     // Find user with valid reset token
     const user = await User.findOne({
       resetPasswordToken: resetTokenHash,
-      resetPasswordExpires: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token'
+        message: "Invalid or expired reset token",
       });
     }
 
@@ -486,15 +495,14 @@ export const resetPassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password reset successfully'
+      message: "Password reset successfully",
     });
-
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reset password',
-      error: error.message
+      message: "Failed to reset password",
+      error: error.message,
     });
   }
 };
@@ -504,18 +512,17 @@ export const logout = async (req, res) => {
   try {
     // In a more sophisticated setup, you might want to blacklist the token
     // For now, we'll just return success as the client will remove the token
-    
+
     res.json({
       success: true,
-      message: 'Logged out successfully'
+      message: "Logged out successfully",
     });
-
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
-      message: 'Logout failed',
-      error: error.message
+      message: "Logout failed",
+      error: error.message,
     });
   }
 };
@@ -524,22 +531,21 @@ export const logout = async (req, res) => {
 export const refreshToken = async (req, res) => {
   try {
     const user = req.user; // From authenticate middleware
-    
+
     // Generate new token
     const token = generateToken(user._id, user.labId);
-    
+
     res.json({
       success: true,
-      message: 'Token refreshed successfully',
-      data: { token }
+      message: "Token refreshed successfully",
+      data: { token },
     });
-
   } catch (error) {
-    console.error('Refresh token error:', error);
+    console.error("Refresh token error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to refresh token',
-      error: error.message
+      message: "Failed to refresh token",
+      error: error.message,
     });
   }
 };
@@ -548,20 +554,19 @@ export const refreshToken = async (req, res) => {
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
-    
+
     // This would be implemented if you add email verification
     // For now, return not implemented
     res.status(501).json({
       success: false,
-      message: 'Email verification not implemented yet'
+      message: "Email verification not implemented yet",
     });
-
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error("Verify email error:", error);
     res.status(500).json({
       success: false,
-      message: 'Email verification failed',
-      error: error.message
+      message: "Email verification failed",
+      error: error.message,
     });
   }
 };
@@ -576,5 +581,5 @@ export default {
   resetPassword,
   logout,
   refreshToken,
-  verifyEmail
+  verifyEmail,
 };
