@@ -7,8 +7,8 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Import pages
 import LandingPage from "./pages/landingpage";
@@ -20,6 +20,9 @@ import DashboardRedirect from "./components/routing/DashboardRedirect";
 import SuperAdminRoutes from "./components/routing/SuperAdminRoutes";
 import LabAdminRoutes from "./components/routing/LabAdminRoutes";
 import StaffRoutes from "./components/routing/StaffRoutes";
+import ProfileSettings from "./pages/ProfileSettings";
+import HelpAndSupport from "./pages/HelpAndSupport";
+import AccountSettings from "./pages/AccountSettings";
 
 // Components
 import NotificationCenter from "./components/NotificationCenter";
@@ -44,6 +47,32 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardRedirect />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Settings Routes */}
+            <Route
+              path="/profile-settings"
+              element={
+                <ProtectedRoute>
+                  <ProfileSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account-settings"
+              element={
+                <ProtectedRoute>
+                  <AccountSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/help-support"
+              element={
+                <ProtectedRoute>
+                  <HelpAndSupport />
                 </ProtectedRoute>
               }
             />

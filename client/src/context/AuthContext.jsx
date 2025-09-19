@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
-import axios from "axios";
+import api from "../lib/axios";
 import { toast } from "react-toastify";
 
 // Auth action types
@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
     try {
-      const response = await axios.post("/api/auth/login", {
+      const response = await api.post("/api/auth/login", {
         ...credentials,
         userType,
       });
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
 
     try {
-      const response = await axios.post("/api/auth/register", credentials);
+      const response = await api.post("/api/auth/register", credentials);
 
       const { data } = response.data;
 

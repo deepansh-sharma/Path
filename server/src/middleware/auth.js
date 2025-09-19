@@ -1,17 +1,18 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
-import Lab from '../models/Lab.js';
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import Lab from "../models/Lab.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 // Generate JWT token
 export const generateToken = (userId, labId = null) => {
   return jwt.sign(
-    { 
-      userId, 
+    {
+      userId,
       labId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -23,7 +24,7 @@ export const verifyToken = (token) => {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
-    throw new Error('Invalid or expired token');
+    throw new Error("Invalid or expired token");
   }
 };
 
@@ -31,72 +32,94 @@ export const verifyToken = (token) => {
 export const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: 'Access token required'
+        message: "Access token required",
       });
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     const decoded = verifyToken(token);
-    
+
     // Find user and populate lab information
     const user = await User.findById(decoded.userId)
-      .populate('labId', 'name subscription.plan subscription.status')
-      .select('-passwordHash');
-    
+      .populate("labId", "name subscription.plan subscription.status")
+      .select("-passwordHash");
+
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Account is deactivated'
+        message: "Account is deactivated",
       });
     }
 
     // Check if lab subscription is active (except for super admin)
-    if (user.role !== 'super_admin' && user.labId) {
+    if (user.role !== "super_admin" && user.labId) {
       const lab = await Lab.findById(user.labId);
-      if (!lab || lab.subscription.status !== 'active') {
+      if (!lab || lab.subscription.status !== "active") {
         return res.status(403).json({
           success: false,
-          message: 'Lab subscription is not active'
+          message: "Lab subscription is not active",
         });
       }
     }
 
     // Update last login
     await user.updateLastLogin();
-    
+
     req.user = user;
     req.labId = user.labId;
     next();
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid or expired token',
-      error: error.message
+      message: "Invalid or expired token",
+      error: error.message,
     });
   }
 };
 
 // Legacy authentication for backward compatibility
-export function authenticateJwt(req, res, next) {
+export async function authenticateJwt(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload; // { userId, role, tenantId }
+
+    // Fetch the full user data to get role and other info
+    const user = await User.findById(payload.userId)
+      .populate("labId", "name subscription.plan subscription.status tenantId")
+      .select("-passwordHash");
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ error: "Account is deactivated" });
+    }
+
+    // Set user data with role and tenantId for legacy compatibility
+    req.user = {
+      userId: user._id,
+      role: user.role,
+      tenantId: user.labId?.tenantId || user.tenantId || "superadmin",
+      ...user.toObject(),
+    };
+
     return next();
-  } catch (_) {
+  } catch (error) {
+    console.error("JWT Auth error:", error);
     return res.status(401).json({ error: "Invalid token" });
   }
 }
@@ -107,14 +130,14 @@ export const authorize = (...allowedRoles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: "Authentication required",
       });
     }
 
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions'
+        message: "Insufficient permissions",
       });
     }
 
@@ -138,14 +161,14 @@ export const requirePermission = (permission) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: "Authentication required",
       });
     }
 
     if (!req.user.hasPermission(permission)) {
       return res.status(403).json({
         success: false,
-        message: `Permission '${permission}' required`
+        message: `Permission '${permission}' required`,
       });
     }
 
@@ -159,21 +182,21 @@ export const requireLabAccess = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: "Authentication required",
       });
     }
 
     // Super admin can access any lab
-    if (req.user.role === 'super_admin') {
+    if (req.user.role === "super_admin") {
       return next();
     }
 
     const labId = req.params.labId || req.body.labId || req.query.labId;
-    
+
     if (!labId) {
       return res.status(400).json({
         success: false,
-        message: 'Lab ID required'
+        message: "Lab ID required",
       });
     }
 
@@ -181,7 +204,7 @@ export const requireLabAccess = async (req, res, next) => {
     if (req.user.labId.toString() !== labId.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied to this lab'
+        message: "Access denied to this lab",
       });
     }
 
@@ -189,8 +212,8 @@ export const requireLabAccess = async (req, res, next) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Error checking lab access',
-      error: error.message
+      message: "Error checking lab access",
+      error: error.message,
     });
   }
 };
@@ -200,12 +223,12 @@ export const addLabFilter = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required'
+      message: "Authentication required",
     });
   }
 
   // Super admin can access all data
-  if (req.user.role === 'super_admin') {
+  if (req.user.role === "super_admin") {
     return next();
   }
 
@@ -217,31 +240,31 @@ export const addLabFilter = (req, res, next) => {
 // Rate limiting middleware for authentication endpoints
 export const authRateLimit = (maxAttempts = 5, windowMs = 15 * 60 * 1000) => {
   const attempts = new Map();
-  
+
   return (req, res, next) => {
-    const key = req.ip + (req.body.email || req.body.phone || '');
+    const key = req.ip + (req.body.email || req.body.phone || "");
     const now = Date.now();
-    
+
     if (!attempts.has(key)) {
       attempts.set(key, { count: 1, resetTime: now + windowMs });
       return next();
     }
-    
+
     const attempt = attempts.get(key);
-    
+
     if (now > attempt.resetTime) {
       attempts.set(key, { count: 1, resetTime: now + windowMs });
       return next();
     }
-    
+
     if (attempt.count >= maxAttempts) {
       return res.status(429).json({
         success: false,
-        message: 'Too many authentication attempts. Please try again later.',
-        retryAfter: Math.ceil((attempt.resetTime - now) / 1000)
+        message: "Too many authentication attempts. Please try again later.",
+        retryAfter: Math.ceil((attempt.resetTime - now) / 1000),
       });
     }
-    
+
     attempt.count++;
     next();
   };
@@ -254,12 +277,12 @@ export const requireFeature = (featureName) => {
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: 'Authentication required'
+          message: "Authentication required",
         });
       }
 
       // Super admin has access to all features
-      if (req.user.role === 'super_admin') {
+      if (req.user.role === "super_admin") {
         return next();
       }
 
@@ -267,14 +290,14 @@ export const requireFeature = (featureName) => {
       if (!lab) {
         return res.status(404).json({
           success: false,
-          message: 'Lab not found'
+          message: "Lab not found",
         });
       }
 
       if (!lab.hasFeature(featureName)) {
         return res.status(403).json({
           success: false,
-          message: `Feature '${featureName}' not available in your subscription plan`
+          message: `Feature '${featureName}' not available in your subscription plan`,
         });
       }
 
@@ -282,8 +305,8 @@ export const requireFeature = (featureName) => {
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error checking feature access',
-        error: error.message
+        message: "Error checking feature access",
+        error: error.message,
       });
     }
   };
@@ -293,27 +316,41 @@ export const requireFeature = (featureName) => {
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return next();
     }
 
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
-    
+
     const user = await User.findById(decoded.userId)
-      .populate('labId', 'name subscription.plan subscription.status')
-      .select('-passwordHash');
-    
+      .populate("labId", "name subscription.plan subscription.status")
+      .select("-passwordHash");
+
     if (user && user.isActive) {
       req.user = user;
       req.labId = user.labId;
     }
-    
+
     next();
   } catch (error) {
     // Ignore token errors for optional auth
     next();
+  }
+};
+
+export const isSuperAdmin = (req, res, next) => {
+  if (
+    req.user &&
+    (req.user.role === "super_admin" || req.user.role === "superadmin")
+  ) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: "Forbidden: Super admin access required.",
+    });
   }
 };
 
@@ -328,7 +365,8 @@ export default {
   authRateLimit,
   requireFeature,
   optionalAuth,
+  isSuperAdmin,
   // Legacy exports
   authenticateJwt,
-  requireRoles
+  requireRoles,
 };

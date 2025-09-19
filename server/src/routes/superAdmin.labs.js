@@ -46,8 +46,15 @@ router.post("/", async (req, res) => {
 
 // List labs with basic usage placeholders (real metrics to be added later)
 router.get("/", async (req, res) => {
-  const labs = await Lab.find().sort({ createdAt: -1 }).lean();
-  return res.json(labs);
+  console.log("[Backend] GET /super-admin/labs called");
+  try {
+    const labs = await Lab.find().sort({ createdAt: -1 }).lean();
+    console.log("[Backend] Labs response:", labs);
+    return res.json(labs);
+  } catch (err) {
+    console.log("[Backend] Error in /super-admin/labs:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // Update lab subscription/features/branding

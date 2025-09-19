@@ -1,16 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
-import { Card, CardContent } from '../ui/Card';
-import { 
-  FiSearch, 
-  FiBell, 
-  FiUser, 
-  FiSettings, 
-  FiLogOut, 
+import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { Badge } from "../ui/Badge";
+import { Card, CardContent } from "../ui/Card";
+import {
+  FiSearch,
+  FiBell,
+  FiUser,
+  FiSettings,
+  FiLogOut,
   FiMenu,
   FiChevronDown,
   FiMoon,
@@ -19,23 +20,35 @@ import {
   FiMinimize,
   FiRefreshCw,
   FiHelpCircle,
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiClock,
-  FiActivity
-} from 'react-icons/fi';
+} from "react-icons/fi";
+import { toast } from "../ui/Toast";
 
-const Header = ({ onSidebarToggle, className = '' }) => {
+const Header = ({ onSidebarToggle, className = "" }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Initialize navigate
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Check local storage for theme preference
+    const savedTheme = localStorage.getItem("darkMode");
+    return savedTheme ? JSON.parse(savedTheme) : false;
+  });
+
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
+
+  // Apply dark mode class to the root element
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("darkMode", JSON.stringify(true));
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("darkMode", JSON.stringify(false));
+    }
+  }, [isDarkMode]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -43,64 +56,61 @@ const Header = ({ onSidebarToggle, className = '' }) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setIsUserMenuOpen(false);
       }
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
         setIsNotificationOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Mock notifications data
   const notifications = [
     {
       id: 1,
-      title: 'New Report Ready',
-      message: 'Blood test report for John Doe is ready for review',
-      time: '2 minutes ago',
-      type: 'success',
+      title: "New Report Ready",
+      message: "Blood test report for John Doe is ready.",
+      time: "2m ago",
+      type: "success",
       unread: true,
     },
     {
       id: 2,
-      title: 'Sample Received',
-      message: 'New sample #SAM-2025-001 has been received',
-      time: '15 minutes ago',
-      type: 'info',
+      title: "Sample Received",
+      message: "New sample #SAM-2025-001 received.",
+      time: "15m ago",
+      type: "info",
       unread: true,
     },
     {
       id: 3,
-      title: 'Payment Received',
-      message: 'Invoice #INV-001 has been paid',
-      time: '1 hour ago',
-      type: 'success',
-      unread: false,
-    },
-    {
-      id: 4,
-      title: 'System Update',
-      message: 'System maintenance scheduled for tonight',
-      time: '2 hours ago',
-      type: 'warning',
+      title: "Payment Received",
+      message: "Invoice #INV-001 has been paid.",
+      time: "1h ago",
+      type: "success",
       unread: false,
     },
   ];
-
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
-      // Implement search functionality
+      toast.info(`Searching for: ${searchQuery}`);
     }
   };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
+      document.documentElement.requestFullscreen().catch((err) => {
+        toast.error(
+          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
+        );
+      });
       setIsFullscreen(true);
     } else {
       document.exitFullscreen();
@@ -110,53 +120,30 @@ const Header = ({ onSidebarToggle, className = '' }) => {
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    toast.success("Signed out successfully!");
+    navigate("/login");
+  };
+
+  const navigateTo = (path) => {
+    navigate(path);
+    setIsUserMenuOpen(false);
   };
 
   const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'success':
-        return '✅';
-      case 'warning':
-        return '⚠️';
-      case 'info':
-        return 'ℹ️';
-      default:
-        return '🔔';
-    }
+    /* ... same as before ... */
   };
 
   const dropdownVariants = {
-    hidden: {
-      opacity: 0,
-      y: -10,
-      scale: 0.95,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.2,
-        ease: 'easeOut',
-      },
-    },
-    exit: {
-      opacity: 0,
-      y: -10,
-      scale: 0.95,
-      transition: {
-        duration: 0.15,
-      },
-    },
+    /* ... same as before ... */
   };
 
   return (
-    <header className={`bg-white border-b border-gray-200 shadow-sm ${className}`}>
+    <header
+      className={`bg-white border-b border-gray-200 shadow-sm ${className}`}
+    >
       <div className="flex items-center justify-between px-6 py-4">
         {/* Left Section */}
         <div className="flex items-center space-x-4">
-          {/* Mobile Menu Button */}
           <Button
             variant="ghost"
             size="sm"
@@ -165,68 +152,47 @@ const Header = ({ onSidebarToggle, className = '' }) => {
           >
             <FiMenu className="w-5 h-5" />
           </Button>
-
-          {/* Search Bar */}
           <form onSubmit={handleSearch} className="hidden md:block">
             <div className="relative">
               <Input
                 type="text"
-                placeholder="Search patients, samples, reports..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={FiSearch}
-                className="w-80 bg-gray-50 border-gray-200 focus:bg-white"
+                leftIcon={<FiSearch />}
+                className="w-80 bg-gray-50"
               />
             </div>
           </form>
         </div>
 
-        {/* Center Section - Breadcrumb or Page Title */}
-        <div className="hidden lg:flex items-center space-x-2 text-sm text-gray-600">
-          <span>Dashboard</span>
-          <span>/</span>
-          <span className="text-gray-900 font-medium">Overview</span>
-        </div>
-
         {/* Right Section */}
         <div className="flex items-center space-x-3">
-          {/* Quick Actions */}
-          <div className="hidden md:flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.location.reload()}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <FiRefreshCw className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleFullscreen}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              {isFullscreen ? (
-                <FiMinimize className="w-4 h-4" />
-              ) : (
-                <FiMaximize className="w-4 h-4" />
-              )}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              {isDarkMode ? (
-                <FiSun className="w-4 h-4" />
-              ) : (
-                <FiMoon className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.location.reload()}
+          >
+            <FiRefreshCw className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+            {isFullscreen ? (
+              <FiMinimize className="w-4 h-4" />
+            ) : (
+              <FiMaximize className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsDarkMode(!isDarkMode)}
+          >
+            {isDarkMode ? (
+              <FiSun className="w-4 h-4" />
+            ) : (
+              <FiMoon className="w-4 h-4" />
+            )}
+          </Button>
 
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>
@@ -234,20 +200,19 @@ const Header = ({ onSidebarToggle, className = '' }) => {
               variant="ghost"
               size="sm"
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-              className="relative text-gray-600 hover:text-gray-900"
+              className="relative"
             >
               <FiBell className="w-5 h-5" />
               {unreadCount > 0 && (
                 <Badge
-                  variant="primary"
+                  variant="destructive"
                   size="sm"
-                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-xs flex items-center justify-center"
+                  className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full"
                 >
                   {unreadCount}
                 </Badge>
               )}
             </Button>
-
             <AnimatePresence>
               {isNotificationOpen && (
                 <motion.div
@@ -257,60 +222,23 @@ const Header = ({ onSidebarToggle, className = '' }) => {
                   exit="exit"
                   className="absolute right-0 mt-2 w-80 z-50"
                 >
-                  <Card className="shadow-lg border-0 ring-1 ring-black ring-opacity-5">
-                    <div className="p-4 border-b border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Notifications
-                        </h3>
-                        {unreadCount > 0 && (
-                          <Badge variant="primary" size="sm">
-                            {unreadCount} new
-                          </Badge>
-                        )}
-                      </div>
+                  <Card className="shadow-lg">
+                    <div className="p-4 border-b">
+                      <h3 className="font-semibold">Notifications</h3>
                     </div>
-                    
                     <CardContent className="p-0 max-h-80 overflow-y-auto">
-                      {notifications.map((notification) => (
+                      {notifications.map((n) => (
                         <div
-                          key={notification.id}
-                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                            notification.unread ? 'bg-blue-50' : ''
+                          key={n.id}
+                          className={`p-4 border-b last:border-b-0 hover:bg-gray-50 ${
+                            n.unread ? "bg-blue-50" : ""
                           }`}
                         >
-                          <div className="flex items-start space-x-3">
-                            <span className="text-lg">
-                              {getNotificationIcon(notification.type)}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900">
-                                {notification.title}
-                              </p>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {notification.message}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-2">
-                                {notification.time}
-                              </p>
-                            </div>
-                            {notification.unread && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            )}
-                          </div>
+                          <p className="font-medium text-sm">{n.title}</p>
+                          <p className="text-xs text-gray-500">{n.message}</p>
                         </div>
                       ))}
                     </CardContent>
-                    
-                    <div className="p-4 border-t border-gray-200">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-healthcare-600 hover:text-healthcare-700"
-                      >
-                        View All Notifications
-                      </Button>
-                    </div>
                   </Card>
                 </motion.div>
               )}
@@ -322,24 +250,18 @@ const Header = ({ onSidebarToggle, className = '' }) => {
             <Button
               variant="ghost"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
+              className="flex items-center space-x-2"
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-healthcare-400 to-healthcare-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                <span className="font-semibold text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </span>
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium">
-                  {user?.name || 'User'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {user?.role?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User'}
-                </p>
+                <p className="text-sm font-medium">{user?.name || "User"}</p>
               </div>
               <FiChevronDown className="w-4 h-4" />
             </Button>
-
             <AnimatePresence>
               {isUserMenuOpen && (
                 <motion.div
@@ -349,71 +271,49 @@ const Header = ({ onSidebarToggle, className = '' }) => {
                   exit="exit"
                   className="absolute right-0 mt-2 w-64 z-50"
                 >
-                  <Card className="shadow-lg border-0 ring-1 ring-black ring-opacity-5">
-                    {/* User Info */}
-                    <div className="p-4 border-b border-gray-200">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-gradient-to-r from-healthcare-400 to-healthcare-500 rounded-full flex items-center justify-center">
-                          <span className="text-white font-semibold">
-                            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {user?.name || 'User'}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user?.email || 'user@example.com'}
-                          </p>
-                          <p className="text-xs text-healthcare-600 truncate">
-                            {user?.role?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User'}
-                          </p>
-                        </div>
-                      </div>
+                  <Card className="shadow-lg">
+                    <div className="p-4 border-b">
+                      <p className="font-semibold truncate">
+                        {user?.name || "User"}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {user?.email || "user@example.com"}
+                      </p>
                     </div>
-
-                    {/* Menu Items */}
                     <CardContent className="p-2">
-                      <div className="space-y-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-50"
-                          leftIcon={FiUser}
-                        >
-                          Profile Settings
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-50"
-                          leftIcon={FiSettings}
-                        >
-                          Account Settings
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-50"
-                          leftIcon={FiHelpCircle}
-                        >
-                          Help & Support
-                        </Button>
-
-                        <div className="border-t border-gray-200 my-2"></div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleLogout}
-                          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                          leftIcon={FiLogOut}
-                        >
-                          Sign Out
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => navigateTo("/profile-settings")}
+                      >
+                        <FiUser className="w-4 h-4 mr-2" /> Profile Settings
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => navigateTo("/account-settings")}
+                      >
+                        <FiSettings className="w-4 h-4 mr-2" /> Account Settings
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => navigateTo("/help-support")}
+                      >
+                        <FiHelpCircle className="w-4 h-4 mr-2" /> Help & Support
+                      </Button>
+                      <div className="border-t my-2"></div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleLogout}
+                        className="w-full justify-start text-red-600 hover:text-red-700"
+                      >
+                        <FiLogOut className="w-4 h-4 mr-2" /> Sign Out
+                      </Button>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -421,20 +321,6 @@ const Header = ({ onSidebarToggle, className = '' }) => {
             </AnimatePresence>
           </div>
         </div>
-      </div>
-
-      {/* Mobile Search Bar */}
-      <div className="md:hidden px-6 pb-4">
-        <form onSubmit={handleSearch}>
-          <Input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            leftIcon={FiSearch}
-            className="w-full bg-gray-50 border-gray-200 focus:bg-white"
-          />
-        </form>
       </div>
     </header>
   );

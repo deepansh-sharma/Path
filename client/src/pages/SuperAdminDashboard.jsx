@@ -1,53 +1,105 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   FiPlus,
   FiUsers,
-  FiBriefcase,
   FiDollarSign,
   FiTrendingUp,
   FiActivity,
-  FiSettings,
   FiEye,
   FiEdit,
   FiTrash2,
   FiDownload,
-  FiFilter,
   FiSearch,
-} from 'react-icons/fi';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { toast } from '../components/ui/Toast';
-import axios from 'axios';
+  FiFileText,
+} from "react-icons/fi";
+import DashboardLayout from "../components/layout/DashboardLayout";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Badge } from "../components/ui/Badge";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { toast } from "../components/ui/Toast";
+import api from "../lib/axios";
+
+// Correctly import the modals from the new path
+import AddLabModal from "../modals/AddLabModal";
+import ViewLabModal from "../modals/ViewLabModal";
+import EditLabModal from "../modals/EditLabModal";
 
 const SuperAdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [labs, setLabs] = useState([]);
-  // Stats from backend
-  const [stats, setStats] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [stats, setStats] = useState({
+    totalLabs: 0,
+    activeLabs: 0,
+    inactiveLabs: 0,
+    totalRevenue: 0,
+  });
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  // State for modals
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+  const [showViewLabModal, setShowViewLabModal] = useState(false);
+  const [showEditLabModal, setShowEditLabModal] = useState(false);
+  const [selectedLab, setSelectedLab] = useState(null);
+
+  const fetchLabs = async () => {
+    try {
+      const labsRes = await api.get("/api/super-admin/labs");
+      setLabs(labsRes.data);
+    } catch (err) {
+      toast.error("Could not refresh labs list.");
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    toast.info("Generating your report...");
+    try {
+      const response = await api.get("/api/export/labs", {
+        responseType: "blob", // This is crucial for handling file downloads
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "labs-report.csv"); // Set the file name
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success("Report downloaded successfully!");
+    } catch (error) {
+      toast.error("Failed to export report. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        setError(null);
-        // Fetch metrics overview
-        const metricsRes = await axios.get('/api/superAdmin/metrics/overview');
-        setStats(metricsRes.data);
-        // Fetch labs list
-        const labsRes = await axios.get('/api/superAdmin/labs');
+        const metricsRes = await api.get("/api/super-admin/metrics/overview");
+        const labsRes = await api.get("/api/super-admin/labs");
+        const totalRevenue = labsRes.data.reduce(
+          (acc, lab) => acc + (lab.analytics?.totalRevenue || 0),
+          0
+        );
+
         setLabs(labsRes.data);
+        setStats({ ...metricsRes.data, totalRevenue });
       } catch (err) {
-        setError(err.response?.data?.error || 'Failed to fetch dashboard data');
-        toast.error(err.response?.data?.error || 'Failed to fetch dashboard data');
+        setError(err.response?.data?.error || "Failed to fetch dashboard data");
       } finally {
         setIsLoading(false);
       }
@@ -55,47 +107,48 @@ const SuperAdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const res = await axios.get('/api/superadmin/overview');
-        setStats(res.data);
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to fetch dashboard stats');
-        toast.error(err.response?.data?.error || 'Failed to fetch dashboard stats');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
-
   const filteredLabs = labs.filter((lab) => {
-    const matchesSearch = lab.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lab.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || lab.status === filterStatus;
+    const matchesSearch =
+      (lab.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lab.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const labStatus = lab.isActive ? "active" : "inactive";
+    const matchesFilter = filterStatus === "all" || labStatus === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
-  const handleAddLab = () => {
-    setShowAddLabModal(true);
+  const handleViewLab = (lab) => {
+    setSelectedLab(lab);
+    setShowViewLabModal(true);
   };
 
-  const handleViewLab = (labId) => {
-    toast.success(`Viewing lab details for ID: ${labId}`);
+  const handleEditLab = (lab) => {
+    setSelectedLab(lab);
+    setShowEditLabModal(true);
   };
 
-  const handleEditLab = (labId) => {
-    toast.info(`Editing lab with ID: ${labId}`);
+  const handleDeleteLab = async (labId) => {
+    if (
+      window.confirm(
+        "Are you sure you want to permanently delete this lab? This action cannot be undone."
+      )
+    ) {
+      try {
+        await api.delete(`/api/super-admin/labs/${labId}`);
+        toast.success("Lab deleted successfully!");
+        fetchLabs();
+      } catch (error) {
+        toast.error(error.response?.data?.error || "Failed to delete lab.");
+      }
+    }
   };
 
-  const handleDeleteLab = (labId) => {
-    toast.error(`Deleting lab with ID: ${labId}`);
-  };
-
-  const StatCard = ({ title, value, icon: Icon, trend, color = 'healthcare' }) => (
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    trend,
+    color = "healthcare",
+  }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -110,8 +163,9 @@ const SuperAdminDashboard = () => {
               {trend && (
                 <div className="flex items-center mt-2">
                   <FiTrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">+{trend}%</span>
-                  <span className="text-sm text-gray-500 ml-1">vs last month</span>
+                  <span className="text-sm text-green-600 font-medium">
+                    +{trend}%
+                  </span>
                 </div>
               )}
             </div>
@@ -127,18 +181,8 @@ const SuperAdminDashboard = () => {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
+        <div className="flex items-center justify-center min-h-screen">
           <LoadingSpinner size="lg" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-red-600 font-bold">{error}</div>
         </div>
       </DashboardLayout>
     );
@@ -146,181 +190,196 @@ const SuperAdminDashboard = () => {
 
   return (
     <DashboardLayout>
+      {/* Render Modals */}
+      {showAddLabModal && (
+        <AddLabModal setShowModal={setShowAddLabModal} fetchLabs={fetchLabs} />
+      )}
+      {showViewLabModal && (
+        <ViewLabModal lab={selectedLab} setShowModal={setShowViewLabModal} />
+      )}
+      {showEditLabModal && (
+        <EditLabModal
+          lab={selectedLab}
+          setShowModal={setShowEditLabModal}
+          fetchLabs={fetchLabs}
+        />
+      )}
+
       <div className="space-y-6">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0"
+          className="flex justify-between items-center"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage labs, subscriptions, and monitor global performance</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Super Admin Dashboard
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Global performance and lab management overview.
+            </p>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline" className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="flex items-center space-x-2"
+              onClick={handleExport}
+              disabled={isExporting}
+            >
               <FiDownload className="w-4 h-4" />
-              <span>Export Report</span>
+              <span>{isExporting ? "Exporting..." : "Export Report"}</span>
             </Button>
-            <Button onClick={handleAddLab} className="flex items-center space-x-2">
+            <Button
+              onClick={() => setShowAddLabModal(true)}
+              className="flex items-center space-x-2"
+            >
               <FiPlus className="w-4 h-4" />
-              <span>Add New Lab</span>
+              <span>Add Lab</span>
             </Button>
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Labs"
-            value={stats?.totalLabs ?? 0}
+            value={stats.totalLabs}
             icon={FiUsers}
-            trend="up"
-            trendValue={8.2}
+            trend="8.2"
           />
           <StatCard
             title="Active Labs"
-            value={stats?.activeLabs ?? 0}
+            value={stats.activeLabs}
             icon={FiActivity}
-            trend="up"
-            trendValue={12.5}
+            trend="12.5"
             color="blue"
           />
           <StatCard
             title="Inactive Labs"
-            value={stats?.inactiveLabs ?? 0}
+            value={stats.inactiveLabs}
             icon={FiFileText}
-            trend="down"
-            trendValue={5.1}
             color="orange"
           />
           <StatCard
             title="Total Revenue"
-            value={`₹${(stats?.totalRevenue ?? 0).toLocaleString()}`}
+            value={`₹${stats.totalRevenue.toLocaleString()}`}
             icon={FiDollarSign}
-            trend="up"
-            trendValue={15.3}
+            trend="15.3"
             color="green"
           />
         </div>
 
-        {/* Labs Management */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{ delay: 0.2 }}
         >
           <Card>
-            <CardHeader>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-                <CardTitle>Lab Management</CardTitle>
-                <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-3 w-full md:w-auto">
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search labs..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-full md:w-64"
-                    />
-                  </div>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500 focus:border-transparent"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Lab Management</CardTitle>
+              <div className="flex space-x-3">
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search labs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
                 </div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Lab Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Contact</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Plan</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Revenue</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Users</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Last Active</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                    <tr className="border-b">
+                      <th className="th-cell">Lab Name</th>
+                      <th className="th-cell">Contact</th>
+                      <th className="th-cell">Plan</th>
+                      <th className="th-cell">Status</th>
+                      <th className="th-cell">Revenue</th>
+                      <th className="th-cell">Users</th>
+                      <th className="th-cell">Last Active</th>
+                      <th className="th-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredLabs.map((lab, index) => (
                       <motion.tr
-                        key={lab.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        key={lab._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b hover:bg-gray-50"
                       >
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="font-medium text-gray-900">{lab.name}</div>
-                            <div className="text-sm text-gray-500">{lab.location}</div>
+                        <td className="td-cell">
+                          <div className="font-medium">{lab.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {lab.address?.city}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="text-sm text-gray-900">{lab.email}</div>
-                            <div className="text-sm text-gray-500">{lab.phone}</div>
+                        <td className="td-cell">
+                          <div>{lab.email}</div>
+                          <div className="text-xs text-gray-500">
+                            {lab.contact}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="td-cell">
                           <Badge
                             variant={
-                              lab.plan === 'Premium' ? 'success' :
-                              lab.plan === 'Standard' ? 'warning' : 'secondary'
+                              lab.subscription?.plan === "premium"
+                                ? "success"
+                                : "warning"
                             }
                           >
-                            {lab.plan}
+                            {lab.subscription?.plan}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="td-cell">
                           <Badge
-                            variant={lab.status === 'active' ? 'success' : 'destructive'}
+                            variant={lab.isActive ? "success" : "destructive"}
                           >
-                            {lab.status}
+                            {lab.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">₹{lab.revenue.toLocaleString()}</div>
+                        <td className="td-cell font-medium">
+                          ₹{(lab.analytics?.totalRevenue || 0).toLocaleString()}
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">{lab.users}</div>
+                        <td className="td-cell">{lab.users?.length || 0}</td>
+                        <td className="td-cell">
+                          {new Date(lab.updatedAt).toLocaleDateString()}
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">{lab.lastActive}</div>
-                        </td>
-                        <td className="py-4 px-4">
+                        <td className="td-cell">
                           <div className="flex space-x-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewLab(lab.id)}
+                              onClick={() => handleViewLab(lab)}
                             >
-                              <FiEye className="w-4 h-4" />
+                              <FiEye />
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleEditLab(lab.id)}
+                              onClick={() => handleEditLab(lab)}
                             >
-                              <FiEdit className="w-4 h-4" />
+                              <FiEdit />
                             </Button>
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleDeleteLab(lab.id)}
+                              onClick={() => handleDeleteLab(lab._id)}
                             >
-                              <FiTrash2 className="w-4 h-4" />
+                              <FiTrash2 />
                             </Button>
                           </div>
                         </td>
@@ -328,28 +387,6 @@ const SuperAdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Revenue Chart Placeholder */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Global Revenue Analytics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <FiActivity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Revenue charts will be implemented with Recharts</p>
-                  <p className="text-sm text-gray-500 mt-2">Monthly revenue trends, lab performance, and growth analytics</p>
-                </div>
               </div>
             </CardContent>
           </Card>

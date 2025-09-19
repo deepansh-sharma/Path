@@ -9,7 +9,7 @@ import morgan from "morgan";
 
 import { connectToDatabase } from "./config/db.js";
 import router from "./routes/index.js";
-
+import exportRoutes from "./routes/export.js";
 const app = express();
 
 // Global middlewares
@@ -21,7 +21,7 @@ app.use(morgan("dev"));
 
 // Mount API routes
 app.use("/api", router);
-
+app.use("/api/export", exportRoutes);
 // Basic root
 app.get("/", (req, res) => {
   res.json({ status: "ok", service: "pathology-saas-server" });
