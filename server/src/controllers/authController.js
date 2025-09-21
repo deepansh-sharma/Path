@@ -149,8 +149,8 @@ export const login = async (req, res) => {
 
     const user = await User.findOne(query)
       .select("+password")
-      .populate("labId", "name subscription.plan subscription.status");
-
+      .populate("labId", "name labId subscription.plan subscription.status ");
+    console.log(user);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -173,11 +173,12 @@ export const login = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Invalid credentials" });
     }
-
+    console.log(user);
     // Check lab subscription status (except for super admin)
     if (user.role !== "super_admin" && user.labId) {
       const lab = await Lab.findById(user.labId);
-      if (!lab || lab.subscription.status !== "active") {
+      console.log(lab);
+      if (!lab || lab.subscription.isActive !== true) {
         return res.status(403).json({
           success: false,
           message: "Lab subscription is not active",

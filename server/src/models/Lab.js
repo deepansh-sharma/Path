@@ -14,7 +14,7 @@ const FeatureFlagsSchema = new mongoose.Schema(
     canBulkOperations: { type: Boolean, default: false },
     maxPatientsPerMonth: { type: Number, default: 100 },
     maxStaffMembers: { type: Number, default: 5 },
-    maxReportTemplates: { type: Number, default: 10 }
+    maxReportTemplates: { type: Number, default: 10 },
   },
   { _id: false }
 );
@@ -37,12 +37,12 @@ const SubscriptionSchema = new mongoose.Schema(
     billingCycle: {
       type: String,
       enum: ["monthly", "yearly"],
-      default: "monthly"
+      default: "monthly",
     },
     amount: { type: Number, default: 0 },
     currency: { type: String, default: "USD" },
     trialEndDate: { type: Date },
-    isTrialActive: { type: Boolean, default: true }
+    isTrialActive: { type: Boolean, default: true },
   },
   { _id: false }
 );
@@ -51,12 +51,12 @@ const BrandingSchema = new mongoose.Schema(
   {
     logoUrl: { type: String },
     reportHeaderText: { type: String },
-    primaryColor: { type: String, default: '#3B82F6' },
-    secondaryColor: { type: String, default: '#1F2937' },
+    primaryColor: { type: String, default: "#3B82F6" },
+    secondaryColor: { type: String, default: "#1F2937" },
     footerText: { type: String },
     digitalSignature: { type: String },
     labLicense: { type: String },
-    doctorSignature: { type: String }
+    doctorSignature: { type: String },
   },
   { _id: false }
 );
@@ -64,26 +64,44 @@ const BrandingSchema = new mongoose.Schema(
 const LabSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    ownerName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    contact: { 
-      type: String, 
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
     },
+    labId: {
+      type: String,
+      required: true,
+      unique: true,
+      default: () => `LAB-${Date.now()}`,
+    },
+    contact: {
+      phone: {
+        type: String,
+        required: [true, "Contact phone number is required."],
+      },
+      email: {
+        type: String,
+        required: [true, "Contact email is required."],
+        lowercase: true,
+        trim: true,
+      },
+    },
+
+    // ... rest of the schema
     address: {
       street: { type: String },
       city: { type: String, required: true },
       state: { type: String, required: true },
       zipCode: { type: String },
-      country: { type: String, default: 'India' }
+      country: { type: String, default: "India" },
     },
-    
+
     // Lab specific details
     licenseNumber: { type: String, required: true, unique: true },
     establishedDate: { type: Date },
     website: { type: String },
-    
+
     // tenancy
     tenantId: { type: String, required: true, unique: true },
 
@@ -93,47 +111,47 @@ const LabSchema = new mongoose.Schema(
 
     // branding
     branding: { type: BrandingSchema, default: () => ({}) },
-    
+
     // Settings
     settings: {
-      timezone: { type: String, default: 'Asia/Kolkata' },
-      currency: { type: String, default: 'INR' },
-      dateFormat: { type: String, default: 'DD/MM/YYYY' },
+      timezone: { type: String, default: "Asia/Kolkata" },
+      currency: { type: String, default: "INR" },
+      dateFormat: { type: String, default: "DD/MM/YYYY" },
       reportDeliveryMethod: {
         type: [String],
-        enum: ['email', 'sms', 'whatsapp', 'portal'],
-        default: ['email']
+        enum: ["email", "sms", "whatsapp", "portal"],
+        default: ["email"],
       },
       autoGenerateInvoice: { type: Boolean, default: true },
-      requirePatientConsent: { type: Boolean, default: true }
+      requirePatientConsent: { type: Boolean, default: true },
     },
-    
+
     // Status
     isActive: { type: Boolean, default: true },
     isVerified: { type: Boolean, default: false },
     verificationDate: { type: Date },
-    
+
     // Analytics
     analytics: {
       totalPatients: { type: Number, default: 0 },
       totalReports: { type: Number, default: 0 },
       totalRevenue: { type: Number, default: 0 },
-      monthlyRevenue: { type: Number, default: 0 }
-    }
+      monthlyRevenue: { type: Number, default: 0 },
+    },
   },
   { timestamps: true }
 );
 
 // Methods
-LabSchema.methods.updateAnalytics = function(type, value = 1) {
-  switch(type) {
-    case 'patient':
+LabSchema.methods.updateAnalytics = function (type, value = 1) {
+  switch (type) {
+    case "patient":
       this.analytics.totalPatients += value;
       break;
-    case 'report':
+    case "report":
       this.analytics.totalReports += value;
       break;
-    case 'revenue':
+    case "revenue":
       this.analytics.totalRevenue += value;
       this.analytics.monthlyRevenue += value;
       break;
@@ -141,18 +159,20 @@ LabSchema.methods.updateAnalytics = function(type, value = 1) {
   return this.save();
 };
 
-LabSchema.methods.resetMonthlyAnalytics = function() {
+LabSchema.methods.resetMonthlyAnalytics = function () {
   this.analytics.monthlyRevenue = 0;
   return this.save();
 };
 
-LabSchema.methods.isFeatureEnabled = function(feature) {
+LabSchema.methods.isFeatureEnabled = function (feature) {
   return this.features[feature] || false;
 };
 
-LabSchema.methods.isSubscriptionActive = function() {
-  return this.subscription.isActive && 
-         (!this.subscription.endDate || this.subscription.endDate > new Date());
+LabSchema.methods.isSubscriptionActive = function () {
+  return (
+    this.subscription.isActive &&
+    (!this.subscription.endDate || this.subscription.endDate > new Date())
+  );
 };
 
 export default mongoose.model("Lab", LabSchema);

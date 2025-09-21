@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { cn } from '../../utils/cn';
 
 const Card = React.forwardRef(({ className, children, hover = false, ...props }, ref) => (
   <motion.div

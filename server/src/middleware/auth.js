@@ -45,9 +45,9 @@ export const authenticate = async (req, res, next) => {
 
     // Find user and populate lab information
     const user = await User.findById(decoded.userId)
-      .populate("labId", "name subscription.plan subscription.status")
+      .populate("labId", "name subscription.plan subscription.isActive")
       .select("-passwordHash");
-
+    console.log("authenticate middleware:", user);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -65,7 +65,7 @@ export const authenticate = async (req, res, next) => {
     // Check if lab subscription is active (except for super admin)
     if (user.role !== "super_admin" && user.labId) {
       const lab = await Lab.findById(user.labId);
-      if (!lab || lab.subscription.status !== "active") {
+      if (!lab || !lab.isSubscriptionActive()) {
         return res.status(403).json({
           success: false,
           message: "Lab subscription is not active",
@@ -88,10 +88,10 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-// Legacy authentication for backward compatibility
 export async function authenticateJwt(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  console.log("authenticateJwt middleware:", token);
   if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);

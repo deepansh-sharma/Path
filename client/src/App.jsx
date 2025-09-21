@@ -5,21 +5,21 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/layout/ProtectedRoute";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Import pages
-import LandingPage from "./pages/landingpage";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import LandingPage from "./features/landing/pages/LandingPage";
+import Login from "./features/auth/pages/Login";
+import Register from "./features/auth/pages/Register";
 
 // Import extracted components
-import DashboardRedirect from "./components/routing/DashboardRedirect";
-import SuperAdminRoutes from "./components/routing/SuperAdminRoutes";
-import LabAdminRoutes from "./components/routing/LabAdminRoutes";
-import StaffRoutes from "./components/routing/StaffRoutes";
+import DashboardRedirect from "./routes/DashboardRedirect";
+import SuperAdminRoutes from "./routes/SuperAdminRoutes";
+import LabAdminRoutes from "./routes/LabAdminRoutes";
+import StaffRoutes from "./routes/StaffRoutes";
 import ProfileSettings from "./pages/ProfileSettings";
 import HelpAndSupport from "./pages/HelpAndSupport";
 import AccountSettings from "./pages/AccountSettings";

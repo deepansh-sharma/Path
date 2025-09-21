@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from "../../contexts/AuthContext";
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const DashboardLayout = ({ children, className = '' }) => {
