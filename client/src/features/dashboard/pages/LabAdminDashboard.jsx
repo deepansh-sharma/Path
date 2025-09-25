@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import api from "../../../utils/axios";
+
 import { motion } from "framer-motion";
 import {
   FiUsers,
@@ -26,8 +28,12 @@ import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
 import { toast } from "../../../components/ui/Toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { dashboardApi } from "../../../api/dashboardApi";
-import axios from "axios";
+import RevenueChart from "../../../components/charts/RevenueChart";
+import PatientGrowthChart from "../../../components/charts/PatientGrowthChart";
+import TestStatusChart from "../../../components/charts/TestStatusChart";
+import StatCard from "../../../components/ui/stat-card";
 const API_URL = "http://localhost:5000/api/dashboard";
+
 const LabAdminDashboard = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +57,7 @@ const LabAdminDashboard = () => {
       console.log("🏥 Lab ID object:", user?.labId);
 
       // Extract the actual lab ID from the labId object
-      const labId = user._id;
+      const labId = user?.labId?._id;
       console.log("🆔 Extracted Lab ID:", labId);
 
       if (!labId) {
@@ -60,17 +66,30 @@ const LabAdminDashboard = () => {
 
       // Use the correct API endpoint for Lab Admin dashboard
       console.log(localStorage);
-      const response = await axios.get(`${API_URL}/lab/${labId}`);
+      const response = await api.get(`${API_URL}/lab/${labId}`);
       console.log("✅ Dashboard data received:", response);
+      console.log(response.data.data);
 
-      setDashboardData(response.data);
+      // Map the API response to match component expectations
+      const mappedData = {
+        stats: response.data.data.stats || {},
+        revenueData: response.data.data.revenueData || [],
+        patientGrowth: response.data.data.patientGrowthData || [], // Map patientGrowthData to patientGrowth
+        testStatus: response.data.data.testStatusData || [], // Map testStatusData to testStatus
+        recentActivities: response.data.data.recentActivities || [],
+        alerts: response.data.data.alerts || [],
+        lab: response.data.data.lab || {},
+      };
+
+      console.log("🔄 Mapped dashboard data:", mappedData);
+      setDashboardData(mappedData);
     } catch (err) {
       console.error("❌ Failed to fetch Lab Admin dashboard data:", err);
       setError(err.message || "Failed to load dashboard data");
       toast.error(err.message || "Failed to load dashboard data");
 
-      // Set fallback data for development
-      setDashboardData({
+      // Set fallback data for development with proper structure
+      const fallbackData = {
         stats: {
           totalPatients: 156,
           totalSamples: 342,
@@ -137,7 +156,21 @@ const LabAdminDashboard = () => {
             timestamp: new Date().toISOString(),
           },
         ],
-      });
+        lab: {
+          id: "fallback-lab-id",
+          name: "Demo Lab",
+          address: {
+            street: "123 Demo St",
+            city: "Demo City",
+            state: "Demo State",
+            zipCode: "12345",
+            country: "Demo Country",
+          },
+        },
+      };
+
+      console.log("🔄 Using fallback data:", fallbackData);
+      setDashboardData(fallbackData);
     } finally {
       setIsLoading(false);
     }
@@ -147,48 +180,82 @@ const LabAdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const StatCard = ({
-    title,
-    value,
-    icon: Icon,
-    trend,
-    color = "blue",
-    subtitle,
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <Card className="hover:shadow-lg transition-shadow duration-300">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-              <p className="text-2xl font-bold text-gray-900">{value}</p>
-              {subtitle && (
-                <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
-              )}
-              {trend && (
-                <div className="flex items-center mt-2">
-                  <FiTrendingUp className="w-4 h-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">
-                    +{trend}%
-                  </span>
-                  <span className="text-sm text-gray-500 ml-1">
-                    vs last month
-                  </span>
-                </div>
-              )}
+  // Stat Card Component
+  const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }) => {
+    const colorStyles = {
+      blue: {
+        bg: "bg-blue-100",
+        text: "text-blue-600",
+        icon: "text-blue-500",
+      },
+      green: {
+        bg: "bg-green-100",
+        text: "text-green-600",
+        icon: "text-green-500",
+      },
+      red: {
+        bg: "bg-red-100",
+        text: "text-red-600",
+        icon: "text-red-500",
+      },
+      purple: {
+        bg: "bg-purple-100",
+        text: "text-purple-600",
+        icon: "text-purple-500",
+      },
+      orange: {
+        bg: "bg-orange-100",
+        text: "text-orange-600",
+        icon: "text-orange-500",
+      },
+    };
+
+    const styles = colorStyles[color] || colorStyles.blue;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">{title}</p>
+                <h3 className="text-2xl font-bold mt-1 text-gray-900">
+                  {value}
+                </h3>
+                {subtitle && (
+                  <p className="text-xs mt-1 text-gray-500">{subtitle}</p>
+                )}
+                {trend !== undefined && (
+                  <div className="flex items-center mt-2">
+                    <span
+                      className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                        trend > 0
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {trend > 0 ? "+" : ""}
+                      {trend}%
+                    </span>
+                    <span className="text-xs text-gray-500 ml-1.5">
+                      vs last month
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className={`p-3 rounded-full ${styles.bg}`}>
+                {Icon && <Icon className={`w-6 h-6 ${styles.icon}`} />}
+              </div>
             </div>
-            <div className={`p-3 rounded-full bg-${color}-100`}>
-              <Icon className={`w-6 h-6 text-${color}-600`} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  };
 
   const formatTimeAgo = (timestamp) => {
     const now = new Date();
@@ -227,7 +294,7 @@ const LabAdminDashboard = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Lab Dashboard</h1>
             <p className="text-gray-600 mt-1">
-              Monitor your lab's performance and manage operations
+              Quick overview of your lab's performance and key metrics
             </p>
           </div>
           <div className="flex space-x-3">
@@ -261,7 +328,7 @@ const LabAdminDashboard = () => {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <StatCard
             title="Total Patients"
             value={dashboardData.stats.totalPatients?.toLocaleString() || "0"}
@@ -300,7 +367,7 @@ const LabAdminDashboard = () => {
         </div>
 
         {/* Charts and Activities Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activities */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -410,39 +477,91 @@ const LabAdminDashboard = () => {
           </motion.div>
         </div>
 
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Revenue Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FiDollarSign className="w-5 h-5 mr-2" />
+                  Revenue Trends
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueChart
+                  data={
+                    dashboardData.revenueData || [
+                      { month: "Jan", revenue: 12000 },
+                      { month: "Feb", revenue: 19000 },
+                      { month: "Mar", revenue: 15000 },
+                      { month: "Apr", revenue: 22000 },
+                      { month: "May", revenue: 28000 },
+                      { month: "Jun", revenue: 25000 },
+                    ]
+                  }
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Patient Growth Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FiUsers className="w-5 h-5 mr-2" />
+                  Patient Growth
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PatientGrowthChart
+                  data={
+                    dashboardData.patientGrowth || [
+                      { month: "Jan", patients: 45 },
+                      { month: "Feb", patients: 52 },
+                      { month: "Mar", patients: 49 },
+                      { month: "Apr", patients: 63 },
+                      { month: "May", patients: 71 },
+                      { month: "Jun", patients: 86 },
+                    ]
+                  }
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
         {/* Test Status Distribution */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
         >
           <Card>
             <CardHeader>
-              <CardTitle>Test Status Overview</CardTitle>
+              <CardTitle className="flex items-center">
+                <FiActivity className="w-5 h-5 mr-2" />
+                Test Status Overview
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {dashboardData.testStatus.map((status, index) => (
-                  <div
-                    key={index}
-                    className="text-center p-4 rounded-lg bg-gray-50"
-                  >
-                    <div
-                      className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-lg"
-                      style={{ backgroundColor: status.color }}
-                    >
-                      {status.value}
-                    </div>
-                    <h3 className="font-medium text-gray-900">{status.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {(
-                        (status.value / dashboardData.stats.totalSamples) *
-                          100 || 0
-                      ).toFixed(1)}
-                      %
-                    </p>
-                  </div>
-                ))}
+            <CardContent className="flex justify-center">
+              <div className="w-full max-w-md">
+                <TestStatusChart
+                  data={dashboardData.testStatus.map((status) => ({
+                    name: status.name,
+                    value: status.value,
+                    color: status.color,
+                  }))}
+                />
               </div>
             </CardContent>
           </Card>

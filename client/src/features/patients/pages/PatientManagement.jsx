@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   FiPlus,
   FiSearch,
-  FiFilter,
   FiEdit,
   FiEye,
   FiTrash2,
   FiDownload,
   FiUpload,
-  FiPhone,
-  FiMail,
-  FiCalendar,
-  FiUser,
-  FiMapPin,
-  FiX,
-  FiSave,
+  FiTestTube,
+  FaTestTube,
 } from "react-icons/fi";
-import DashboardLayout from "../../../components/layout/DashboardLayout";
+import { FaVial } from "react-icons/fa";
 import {
   Card,
   CardHeader,
@@ -29,652 +23,284 @@ import { Input } from "../../../components/ui/Input";
 import { Badge } from "../../../components/ui/Badge";
 import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
 import { toast } from "../../../components/ui/Toast";
+import PatientEntryForm from "../components/PatientEntryForm";
+import DashboardLayout from "../../../components/layout/DashboardLayout";
+import { patientApi } from "../../../api/patientApi";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const PatientManagement = () => {
+  const { user } = useAuth(); // Get authenticated user for lab context
   const [isLoading, setIsLoading] = useState(true);
   const [patients, setPatients] = useState([]);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterGender, setFilterGender] = useState("all");
   const [filterAge, setFilterAge] = useState("all");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+  const [filterDate, setFilterDate] = useState("all");
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: "",
+    endDate: "",
+  });
+  const [showPatientEntryForm, setShowPatientEntryForm] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [patientsPerPage] = useState(10);
+  const [totalPatients, setTotalPatients] = useState(0);
 
-  // Form state for add/edit patient
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-    emergencyContact: "",
-    bloodGroup: "",
-    allergies: "",
-    medicalHistory: "",
-  });
+  // Fetch patients from API with pagination and filters
+  const fetchPatients = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const queryParams = {
+        page: currentPage,
+        limit: patientsPerPage,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      };
 
-  // Mock patient data
+      // Add search parameter
+      if (searchTerm.trim()) {
+        queryParams.search = searchTerm.trim();
+      }
+
+      // Add gender filter (convert to backend expected format)
+      if (filterGender !== "all") {
+        queryParams.gender = filterGender;
+      }
+
+      // Add category filter
+      if (filterDate !== "all") {
+        queryParams.category = filterDate;
+      }
+
+      console.log('Fetching patients with params:', queryParams);
+      const response = await patientApi.getAllPatients(queryParams);
+      
+      if (response.success) {
+        setPatients(response.data.patients || []);
+        setTotalPatients(response.data.pagination?.total || 0);
+        console.log('Patients fetched successfully:', response.data.patients?.length);
+      } else {
+        throw new Error(response.message || 'Failed to fetch patients');
+      }
+    } catch (err) {
+      console.error('Error fetching patients:', err);
+      setError(err.message || 'Failed to load patients. Please try again.');
+      setPatients([]);
+      setTotalPatients(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load and when dependencies change
+  useEffect(() => {
+    fetchPatients();
+  }, [currentPage, searchTerm, filterGender, filterDate, customDateRange]);
+
+  // Mock data (keeping as fallback for development)
   const mockPatients = [
     {
-      id: "P001",
-      firstName: "John",
-      lastName: "Doe",
+      patientId: "PAT001",
+      name: "John Doe",
       email: "john.doe@email.com",
       phone: "+91 98765 43210",
-      dateOfBirth: "1985-06-15",
+      age: 38,
       gender: "Male",
-      address: "123 Main Street",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400001",
-      emergencyContact: "+91 98765 43211",
-      bloodGroup: "O+",
-      allergies: "None",
-      medicalHistory: "Hypertension",
-      registrationDate: "2024-01-15",
+      address: {
+        street: "123 Main Street",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pincode: "400001",
+        country: "India",
+      },
+      patientCategory: "OPD",
+      vipStatus: false,
       lastVisit: "2024-12-15",
-      totalTests: 12,
       status: "active",
     },
     {
-      id: "P002",
-      firstName: "Sarah",
-      lastName: "Wilson",
+      patientId: "PAT002",
+      name: "Sarah Wilson",
       email: "sarah.wilson@email.com",
       phone: "+91 87654 32109",
-      dateOfBirth: "1990-03-22",
+      age: 34,
       gender: "Female",
-      address: "456 Oak Avenue",
-      city: "Delhi",
-      state: "Delhi",
-      pincode: "110001",
-      emergencyContact: "+91 87654 32110",
-      bloodGroup: "A+",
-      allergies: "Penicillin",
-      medicalHistory: "Diabetes Type 2",
-      registrationDate: "2024-02-20",
+      address: {
+        street: "456 Oak Avenue",
+        city: "Delhi",
+        state: "Delhi",
+        pincode: "110001",
+        country: "India",
+      },
+      patientCategory: "Home Collection",
+      vipStatus: true,
       lastVisit: "2024-12-18",
-      totalTests: 8,
       status: "active",
-    },
-    {
-      id: "P003",
-      firstName: "Michael",
-      lastName: "Johnson",
-      email: "michael.j@email.com",
-      phone: "+91 76543 21098",
-      dateOfBirth: "1978-11-08",
-      gender: "Male",
-      address: "789 Pine Road",
-      city: "Bangalore",
-      state: "Karnataka",
-      pincode: "560001",
-      emergencyContact: "+91 76543 21099",
-      bloodGroup: "B+",
-      allergies: "Shellfish",
-      medicalHistory: "None",
-      registrationDate: "2024-03-10",
-      lastVisit: "2024-12-10",
-      totalTests: 5,
-      status: "inactive",
     },
   ];
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setPatients(mockPatients);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+  // Remove the old useEffect that set mock data
+  // useEffect(() => {
+  //   setTimeout(() => {
+  //     setPatients(mockPatients);
+  //     setIsLoading(false);
+  //   }, 800);
+  // }, []);
 
-  // Calculate age from date of birth
-  const calculateAge = (dateOfBirth) => {
+  // Helper function to get date ranges
+  const getDateRange = (filterType) => {
     const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--;
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
+    switch (filterType) {
+      case "today":
+        return {
+          start: startOfToday,
+          end: new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1),
+        };
+      case "week":
+        const startOfWeek = new Date(startOfToday);
+        startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        return { start: startOfWeek, end: endOfWeek };
+      case "month":
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          0
+        );
+        endOfMonth.setHours(23, 59, 59, 999);
+        return { start: startOfMonth, end: endOfMonth };
+      case "custom":
+        if (customDateRange.startDate && customDateRange.endDate) {
+          return {
+            start: new Date(customDateRange.startDate),
+            end: new Date(customDateRange.endDate + "T23:59:59"),
+          };
+        }
+        return null;
+      default:
+        return null;
     }
-    return age;
   };
 
-  // Filter patients based on search and filters
+  // Filter patients (now done server-side, but keeping client-side for additional filtering)
   const filteredPatients = patients.filter((patient) => {
-    const matchesSearch =
-      patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.phone.includes(searchTerm) ||
-      patient.id.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesGender =
-      filterGender === "all" || patient.gender.toLowerCase() === filterGender;
-
-    const age = calculateAge(patient.dateOfBirth);
+    // Age filtering (client-side since it's not in the API)
     const matchesAge =
       filterAge === "all" ||
-      (filterAge === "child" && age < 18) ||
-      (filterAge === "adult" && age >= 18 && age < 60) ||
-      (filterAge === "senior" && age >= 60);
+      (filterAge === "child" && patient.age < 18) ||
+      (filterAge === "adult" && patient.age >= 18 && patient.age < 60) ||
+      (filterAge === "senior" && patient.age >= 60);
 
-    return matchesSearch && matchesGender && matchesAge;
+    return matchesAge;
   });
 
-  // Pagination
-  const indexOfLastPatient = currentPage * patientsPerPage;
-  const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
-  const currentPatients = filteredPatients.slice(
-    indexOfFirstPatient,
-    indexOfLastPatient
-  );
-  const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
+  // Server-side pagination - no need for client-side slicing
+  // The patients array already contains the correct page data from the API
+  const totalPages = Math.ceil(totalPatients / patientsPerPage);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
+  // Actions
   const handleAddPatient = () => {
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      gender: "",
-      address: "",
-      city: "",
-      state: "",
-      pincode: "",
-      emergencyContact: "",
-      bloodGroup: "",
-      allergies: "",
-      medicalHistory: "",
-    });
     setSelectedPatient(null);
-    setShowAddModal(true);
+    setShowPatientEntryForm(true);
   };
 
   const handleEditPatient = (patient) => {
-    setFormData({
-      firstName: patient.firstName,
-      lastName: patient.lastName,
-      email: patient.email,
-      phone: patient.phone,
-      dateOfBirth: patient.dateOfBirth,
-      gender: patient.gender,
-      address: patient.address,
-      city: patient.city,
-      state: patient.state,
-      pincode: patient.pincode,
-      emergencyContact: patient.emergencyContact,
-      bloodGroup: patient.bloodGroup,
-      allergies: patient.allergies,
-      medicalHistory: patient.medicalHistory,
+    setSelectedPatient(patient);
+    setShowPatientEntryForm(true);
+  };
+
+  const handleDeletePatient = async (patientId) => {
+    try {
+      const confirmed = window.confirm("Are you sure you want to delete this patient?");
+      if (!confirmed) return;
+
+      await patientApi.deletePatient(patientId);
+      toast.success("Patient deleted successfully");
+      
+      // Refresh the patient list
+      fetchPatients();
+    } catch (error) {
+      console.error("Error deleting patient:", error);
+      toast.error(error.message || "Failed to delete patient");
+    }
+  };
+
+  const handleGenerateTests = (patient) => {
+    // Pre-populate the form with existing patient data for new test generation
+    setSelectedPatient({
+      ...patient,
+      // Reset test-related fields for new test generation
+      selectedTests: [],
+      totalAmount: 0,
+      finalAmount: 0,
+      paymentType: "Cash",
+      // Keep patient info but generate new IDs for the test session
+      testSessionId: `TS-${Date.now()}`,
+      createdAt: new Date().toISOString(),
     });
-    setSelectedPatient(patient);
-    setShowAddModal(true);
+    setShowPatientEntryForm(true);
+    toast.success(`Generating new tests for ${patient.name}`);
   };
 
-  const handleViewPatient = (patient) => {
-    setSelectedPatient(patient);
-    setShowViewModal(true);
+  // Handle search with debouncing
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
-  const handleDeletePatient = (patientId) => {
-    toast.error(
-      `Delete patient ${patientId} - This would show a confirmation dialog`
-    );
-  };
-
-  const handleSavePatient = () => {
-    if (
-      !formData.firstName ||
-      !formData.lastName ||
-      !formData.email ||
-      !formData.phone
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
+  // Handle filter changes
+  const handleFilterChange = (filterType, value) => {
+    switch (filterType) {
+      case 'gender':
+        setFilterGender(value);
+        break;
+      case 'age':
+        setFilterAge(value);
+        break;
+      case 'date':
+        setFilterDate(value);
+        break;
     }
-
-    if (selectedPatient) {
-      toast.success(`Patient ${selectedPatient.id} updated successfully`);
-    } else {
-      toast.success("New patient added successfully");
-    }
-    setShowAddModal(false);
+    setCurrentPage(1); // Reset to first page when filtering
   };
-
-  const PatientModal = () => (
-    <AnimatePresence>
-      {showAddModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {selectedPatient ? "Edit Patient" : "Add New Patient"}
-                </h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  <FiX className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name *
-                  </label>
-                  <Input
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    placeholder="Enter first name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name *
-                  </label>
-                  <Input
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    placeholder="Enter last name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <Input
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter email address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone *
-                  </label>
-                  <Input
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="Enter phone number"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Birth
-                  </label>
-                  <Input
-                    name="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Gender
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <Input
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Enter full address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
-                  </label>
-                  <Input
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    placeholder="Enter city"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State
-                  </label>
-                  <Input
-                    name="state"
-                    value={formData.state}
-                    onChange={handleInputChange}
-                    placeholder="Enter state"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pincode
-                  </label>
-                  <Input
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleInputChange}
-                    placeholder="Enter pincode"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Emergency Contact
-                  </label>
-                  <Input
-                    name="emergencyContact"
-                    value={formData.emergencyContact}
-                    onChange={handleInputChange}
-                    placeholder="Enter emergency contact"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Blood Group
-                  </label>
-                  <select
-                    name="bloodGroup"
-                    value={formData.bloodGroup}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-                  >
-                    <option value="">Select Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Allergies
-                  </label>
-                  <Input
-                    name="allergies"
-                    value={formData.allergies}
-                    onChange={handleInputChange}
-                    placeholder="Enter known allergies"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Medical History
-                  </label>
-                  <textarea
-                    name="medicalHistory"
-                    value={formData.medicalHistory}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-                    placeholder="Enter medical history"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSavePatient}>
-                  <FiSave className="w-4 h-4 mr-2" />
-                  {selectedPatient ? "Update Patient" : "Add Patient"}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
-  const PatientViewModal = () => (
-    <AnimatePresence>
-      {showViewModal && selectedPatient && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Patient Details
-                </h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowViewModal(false)}
-                >
-                  <FiX className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <FiUser className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Name:</span>
-                      <span>
-                        {selectedPatient.firstName} {selectedPatient.lastName}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <FiMail className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Email:</span>
-                      <span>{selectedPatient.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <FiPhone className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Phone:</span>
-                      <span>{selectedPatient.phone}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <FiCalendar className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Age:</span>
-                      <span>
-                        {calculateAge(selectedPatient.dateOfBirth)} years
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Gender:</span>
-                      <span>{selectedPatient.gender}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Blood Group:</span>
-                      <Badge variant="secondary">
-                        {selectedPatient.bloodGroup}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Contact Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-start space-x-2">
-                      <FiMapPin className="w-4 h-4 text-gray-500 mt-1" />
-                      <div>
-                        <span className="font-medium">Address:</span>
-                        <div className="text-sm text-gray-600">
-                          {selectedPatient.address}
-                          <br />
-                          {selectedPatient.city}, {selectedPatient.state} -{" "}
-                          {selectedPatient.pincode}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <FiPhone className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium">Emergency Contact:</span>
-                      <span>{selectedPatient.emergencyContact}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Medical Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <span className="font-medium">Allergies:</span>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {selectedPatient.allergies || "None"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Medical History:</span>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {selectedPatient.medicalHistory || "None"}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Lab Statistics</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Patient ID:</span>
-                      <Badge variant="outline">{selectedPatient.id}</Badge>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Registration Date:</span>
-                      <span>{selectedPatient.registrationDate}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Last Visit:</span>
-                      <span>{selectedPatient.lastVisit}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Total Tests:</span>
-                      <Badge variant="secondary">
-                        {selectedPatient.totalTests}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">Status:</span>
-                      <Badge
-                        variant={
-                          selectedPatient.status === "active"
-                            ? "success"
-                            : "destructive"
-                        }
-                      >
-                        {selectedPatient.status}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => handleEditPatient(selectedPatient)}
-                >
-                  <FiEdit className="w-4 h-4 mr-2" />
-                  Edit Patient
-                </Button>
-                <Button onClick={() => setShowViewModal(false)}>Close</Button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-96">
           <LoadingSpinner size="lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state if there's an error and no patients loaded
+  if (error && patients.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-96 space-y-4">
+          <div className="text-red-500 text-lg font-semibold">
+            Failed to load patients
+          </div>
+          <div className="text-gray-600 text-center max-w-md">
+            {error}
+          </div>
+          <Button onClick={fetchPatients} className="mt-4">
+            Try Again
+          </Button>
         </div>
       </DashboardLayout>
     );
@@ -717,154 +343,163 @@ const PatientManagement = () => {
           </div>
         </motion.div>
 
-        {/* Filters and Search */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search patients by name, email, phone, or ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+        {/* Search & Filters */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col space-y-4">
+              {/* Search Bar */}
+              <div className="flex-1">
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search patients..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {/* Filter Row 1: Gender, Age, Date */}
+              <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
+                <select
+                  value={filterGender}
+                  onChange={(e) => handleFilterChange('gender', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="all">All Genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                <select
+                  value={filterAge}
+                  onChange={(e) => handleFilterChange('age', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="all">All Ages</option>
+                  <option value="child">Child (&lt;18)</option>
+                  <option value="adult">Adult (18-60)</option>
+                  <option value="senior">Senior (&gt;60)</option>
+                </select>
+                <select
+                  value={filterDate}
+                  onChange={(e) => handleFilterChange('date', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+
+              {/* Custom Date Range */}
+              {filterDate === "custom" && (
+                <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={customDateRange.startDate}
+                      onChange={(e) =>
+                        setCustomDateRange((prev) => ({
+                          ...prev,
+                          startDate: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={customDateRange.endDate}
+                      onChange={(e) =>
+                        setCustomDateRange((prev) => ({
+                          ...prev,
+                          endDate: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
                 </div>
-                <div className="flex space-x-3">
-                  <select
-                    value={filterGender}
-                    onChange={(e) => setFilterGender(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-                  >
-                    <option value="all">All Genders</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <select
-                    value={filterAge}
-                    onChange={(e) => setFilterAge(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-healthcare-500"
-                  >
-                    <option value="all">All Ages</option>
-                    <option value="child">Child (&lt;18)</option>
-                    <option value="adult">Adult (18-60)</option>
-                    <option value="senior">Senior (&gt;60)</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Patients Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Patients ({filteredPatients.length})</CardTitle>
-                <div className="text-sm text-gray-600">
-                  Showing {indexOfFirstPatient + 1}-
-                  {Math.min(indexOfLastPatient, filteredPatients.length)} of{" "}
-                  {filteredPatients.length}
-                </div>
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Patients ({totalPatients})</CardTitle>
+              <div className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * patientsPerPage + 1}-
+                {Math.min(currentPage * patientsPerPage, totalPatients)} of{" "}
+                {totalPatients}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Patient ID
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Name
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Contact
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Age/Gender
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Blood Group
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Last Visit
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Actions
-                      </th>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4">Patient ID</th>
+                    <th className="text-left py-3 px-4">Name</th>
+                    <th className="text-left py-3 px-4">Contact</th>
+                    <th className="text-left py-3 px-4">Age/Gender</th>
+                    <th className="text-left py-3 px-4">Category</th>
+                    <th className="text-left py-3 px-4">VIP</th>
+                    <th className="text-left py-3 px-4">Last Visit</th>
+                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patients.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" className="py-8 text-center text-gray-500">
+                        {searchTerm || filterGender !== "all" || filterAge !== "all" || filterDate !== "all" 
+                          ? "No patients found matching your criteria" 
+                          : "No patients registered yet"}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {currentPatients.map((patient, index) => (
-                      <motion.tr
-                        key={patient.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  ) : (
+                    patients.map((patient) => (
+                      <tr
+                        key={patient._id || patient.patientId}
+                        className="border-b border-gray-100 hover:bg-gray-50"
                       >
-                        <td className="py-4 px-4">
-                          <Badge variant="outline">{patient.id}</Badge>
+                        <td className="py-3 px-4">
+                          <Badge variant="outline">{patient.patientId}</Badge>
                         </td>
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {patient.firstName} {patient.lastName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {patient.city}, {patient.state}
-                            </div>
-                          </div>
+                        <td className="py-3 px-4">{patient.name}</td>
+                        <td className="py-3 px-4">{patient.phone}</td>
+                        <td className="py-3 px-4">
+                          {patient.age} / {patient.gender}
                         </td>
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="text-sm text-gray-900">
-                              {patient.email}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {patient.phone}
-                            </div>
-                          </div>
+                        <td className="py-3 px-4">{patient.patientCategory || "N/A"}</td>
+                        <td className="py-3 px-4">
+                          {patient.vipStatus ? "⭐ VIP" : "Regular"}
                         </td>
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="text-sm text-gray-900">
-                              {calculateAge(patient.dateOfBirth)} years
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {patient.gender}
-                            </div>
-                          </div>
+                        <td className="py-3 px-4">
+                          {patient.lastVisit 
+                            ? new Date(patient.lastVisit).toLocaleDateString()
+                            : patient.createdAt 
+                              ? new Date(patient.createdAt).toLocaleDateString()
+                              : "N/A"
+                          }
                         </td>
-                        <td className="py-4 px-4">
-                          <Badge variant="secondary">
-                            {patient.bloodGroup}
-                          </Badge>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-600">
-                            {patient.lastVisit}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-4">
                           <Badge
                             variant={
                               patient.status === "active"
@@ -875,14 +510,16 @@ const PatientManagement = () => {
                             {patient.status}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-3 px-4">
                           <div className="flex space-x-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewPatient(patient)}
+                              onClick={() => handleGenerateTests(patient)}
+                              className="text-blue-600 hover:text-blue-700"
+                              title="Generate New Tests"
                             >
-                              <FiEye className="w-4 h-4" />
+                              <FaVial className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -894,56 +531,81 @@ const PatientManagement = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleDeletePatient(patient.id)}
+                              onClick={() =>
+                                handleDeletePatient(patient._id || patient.patientId)
+                              }
                             >
                               <FiTrash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-6">
-                  <div className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Modals */}
-        <PatientModal />
-        <PatientViewModal />
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ✅ Patient Entry Form Modal */}
+      <PatientEntryForm
+        open={showPatientEntryForm}
+        onOpenChange={setShowPatientEntryForm}
+        onSuccess={(data) => {
+          // Extract patient data from the nested structure
+          const patientData = data.patient || data;
+          
+          if (selectedPatient) {
+            // edit case
+            setPatients((prev) =>
+              prev.map((p) =>
+                p.patientId === selectedPatient.patientId ? patientData : p
+              )
+            );
+            toast.success("Patient updated successfully");
+          } else {
+            // add case - add new patient to the list
+            setPatients((prev) => [...prev, patientData]);
+            toast.success("New patient added successfully");
+          }
+          
+          // Close the form after successful registration
+          setShowPatientEntryForm(false);
+        }}
+      />
     </DashboardLayout>
   );
 };

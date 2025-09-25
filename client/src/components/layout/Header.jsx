@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Badge } from "../ui/Badge";
 import { Card, CardContent } from "../ui/Card";
+import ThemeToggle from "../ui/ThemeToggle";
 import {
   FiSearch,
   FiBell,
@@ -14,8 +16,6 @@ import {
   FiLogOut,
   FiMenu,
   FiChevronDown,
-  FiMoon,
-  FiSun,
   FiMaximize,
   FiMinimize,
   FiRefreshCw,
@@ -30,25 +30,9 @@ const Header = ({ onSidebarToggle, className = "" }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check local storage for theme preference
-    const savedTheme = localStorage.getItem("darkMode");
-    return savedTheme ? JSON.parse(savedTheme) : false;
-  });
-
+  const { isDarkMode } = useTheme();
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
-
-  // Apply dark mode class to the root element
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("darkMode", JSON.stringify(true));
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("darkMode", JSON.stringify(false));
-    }
-  }, [isDarkMode]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -182,17 +166,9 @@ const Header = ({ onSidebarToggle, className = "" }) => {
               <FiMaximize className="w-4 h-4" />
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-          >
-            {isDarkMode ? (
-              <FiSun className="w-4 h-4" />
-            ) : (
-              <FiMoon className="w-4 h-4" />
-            )}
-          </Button>
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
 
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>

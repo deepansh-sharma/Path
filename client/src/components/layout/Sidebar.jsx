@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { 
-  FiHome, 
-  FiUsers, 
-  FiActivity, 
-  FiFileText, 
-  FiDollarSign, 
-  FiBell, 
-  FiSettings, 
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+import {
+  FiHome,
+  FiUsers,
+  FiActivity,
+  FiFileText,
+  FiDollarSign,
+  FiBell,
+  FiSettings,
   FiLogOut,
   FiChevronLeft,
   FiChevronRight,
@@ -25,12 +26,13 @@ import {
   FiSearch,
   FiCalendar,
   FiMail,
-  FiPhone
-} from 'react-icons/fi';
+  FiPhone,
+} from "react-icons/fi";
 
-const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
-  const { user, logout, hasPermission, hasRole } = useAuth();
-  const [activeItem, setActiveItem] = useState('dashboard');
+const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
+  const { user, logout, hasPermission, hasRole, getPermissions } = useAuth();
+  const navigate = useNavigate();
+  const [activeItem, setActiveItem] = useState("dashboard");
 
   // Define menu items based on user roles
   const getMenuItems = () => {
@@ -38,104 +40,116 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
 
     // Dashboard - available to all authenticated users
     baseItems.push({
-      id: 'dashboard',
-      label: 'Dashboard',
+      id: "dashboard",
+      label: "Dashboard",
       icon: FiHome,
-      path: '/dashboard',
+      path: "/dashboard",
       badge: null,
     });
 
     // Super Admin specific items
-    if (hasRole('super-admin')) {
+    if (hasRole("super-admin")) {
       baseItems.push(
         {
-          id: 'labs',
-          label: 'Lab Management',
+          id: "labs",
+          label: "Lab Management",
           icon: FiBriefcase,
-          path: '/labs',
+          path: "/labs",
           badge: null,
         },
         {
-          id: 'subscriptions',
-          label: 'Subscriptions',
+          id: "subscriptions",
+          label: "Subscriptions",
           icon: FiCreditCard,
-          path: '/subscriptions',
+          path: "/subscriptions",
           badge: null,
         },
         {
-          id: 'global-analytics',
-          label: 'Global Analytics',
+          id: "global-analytics",
+          label: "Global Analytics",
           icon: FiTrendingUp,
-          path: '/analytics/global',
+          path: "/analytics/global",
           badge: null,
         }
       );
     }
 
     // Lab Admin and Staff items
-    if (hasRole('lab-admin') || hasRole('technician') || hasRole('receptionist') || hasRole('finance')) {
+    console.log("User role:", user?.role);
+    console.log("hasRole lab_admin:", hasRole("lab_admin"));
+    console.log("hasRole lab-admin:", hasRole("lab-admin"));
+    console.log("hasPermission manage-patients:", hasPermission("manage-patients"));
+    console.log("User permissions:", getPermissions());
+
+    if (
+      hasRole("lab_admin") ||
+      hasRole("lab-admin") ||
+      hasRole("technician") ||
+      hasRole("receptionist") ||
+      hasRole("finance")
+    ) {
       // Patient Management
-      if (hasPermission('manage-patients') || hasPermission('view-patients')) {
+      if (hasPermission("manage-patients") || hasPermission("view-patients")) {
         baseItems.push({
-          id: 'patients',
-          label: 'Patients',
+          id: "patients",
+          label: "Patient Management",
           icon: FiUsers,
-          path: '/patients',
+          path: "/patients",
           badge: null,
         });
       }
 
       // Sample Management
-      if (hasPermission('manage-samples')) {
+      if (hasPermission("manage-samples")) {
         baseItems.push({
-          id: 'samples',
-          label: 'Sample Tracking',
+          id: "samples",
+          label: "Sample Tracking",
           icon: FiActivity,
-          path: '/samples',
-          badge: { text: 'New', variant: 'success' },
+          path: "/samples",
+          badge: { text: "New", variant: "success" },
         });
       }
 
       // Report Management
-      if (hasPermission('create-reports') || hasPermission('manage-reports')) {
+      if (hasPermission("create-reports") || hasPermission("manage-reports")) {
         baseItems.push({
-          id: 'reports',
-          label: 'Reports',
+          id: "reports",
+          label: "Reports",
           icon: FiFileText,
-          path: '/reports',
+          path: "/reports",
           badge: null,
         });
       }
 
       // Invoice Management
-      if (hasPermission('manage-invoices') || hasPermission('view-invoices')) {
+      if (hasPermission("manage-invoices") || hasPermission("view-invoices")) {
         baseItems.push({
-          id: 'invoices',
-          label: 'Invoices',
+          id: "invoices",
+          label: "Invoices",
           icon: FiDollarSign,
-          path: '/invoices',
-          badge: { text: '3', variant: 'warning' },
+          path: "/invoices",
+          badge: { text: "3", variant: "warning" },
         });
       }
 
       // Staff Management (Lab Admin only)
-      if (hasPermission('manage-lab-staff')) {
+      if (hasPermission("manage-lab-staff")) {
         baseItems.push({
-          id: 'staff',
-          label: 'Staff',
+          id: "staff",
+          label: "Staff",
           icon: FiUserPlus,
-          path: '/staff',
+          path: "/staff",
           badge: null,
         });
       }
 
       // Analytics (Lab level)
-      if (hasPermission('view-lab-analytics')) {
+      if (hasPermission("view-lab-analytics")) {
         baseItems.push({
-          id: 'analytics',
-          label: 'Analytics',
+          id: "analytics",
+          label: "Analytics",
           icon: FiBarChart2,
-          path: '/analytics',
+          path: "/analytics",
           badge: null,
         });
       }
@@ -144,17 +158,17 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
     // Common items for all users
     baseItems.push(
       {
-        id: 'notifications',
-        label: 'Notifications',
+        id: "notifications",
+        label: "Notifications",
         icon: FiBell,
-        path: '/notifications',
-        badge: { text: '5', variant: 'primary' },
+        path: "/notifications",
+        badge: { text: "5", variant: "primary" },
       },
       {
-        id: 'settings',
-        label: 'Settings',
+        id: "settings",
+        label: "Settings",
         icon: FiSettings,
-        path: '/settings',
+        path: "/settings",
         badge: null,
       }
     );
@@ -164,16 +178,39 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
 
   const menuItems = getMenuItems();
 
+  // Debug logging
+  console.log("Current user:", user);
+  console.log("User role:", user?.role);
+  console.log("Menu items:", menuItems);
+  console.log("Has lab-admin role:", hasRole("lab-admin"));
+  console.log(
+    "Has manage-patients permission:",
+    hasPermission("manage-patients")
+  );
+  console.log("Has view-patients permission:", hasPermission("view-patients"));
+
   const handleItemClick = (item) => {
     setActiveItem(item.id);
-    // Handle navigation here - typically with React Router
-    console.log('Navigate to:', item.path);
+    
+    // Build the correct path based on user role
+    let fullPath = item.path;
+    
+    if (hasRole("super_admin")) {
+      fullPath = `/super-admin${item.path}`;
+    } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
+      fullPath = `/lab-admin${item.path}`;
+    } else if (hasRole("staff") || hasRole("technician") || hasRole("receptionist") || hasRole("finance")) {
+      fullPath = `/staff${item.path}`;
+    }
+    
+    console.log("Navigating to:", fullPath);
+    navigate(fullPath);
   };
 
   const handleLogout = () => {
     logout();
     // Redirect to login page
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   const sidebarVariants = {
@@ -181,14 +218,14 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
       width: 280,
       transition: {
         duration: 0.3,
-        ease: 'easeInOut',
+        ease: "easeInOut",
       },
     },
     collapsed: {
       width: 80,
       transition: {
         duration: 0.3,
-        ease: 'easeInOut',
+        ease: "easeInOut",
       },
     },
   };
@@ -214,7 +251,7 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
   return (
     <motion.div
       variants={sidebarVariants}
-      animate={isCollapsed ? 'collapsed' : 'expanded'}
+      animate={isCollapsed ? "collapsed" : "expanded"}
       className={`bg-white border-r border-gray-200 shadow-sm flex flex-col h-full ${className}`}
     >
       {/* Header */}
@@ -239,7 +276,7 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -260,10 +297,10 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-healthcare-400 to-healthcare-500 rounded-full flex items-center justify-center">
             <span className="text-white font-semibold text-sm">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              {user?.name?.charAt(0)?.toUpperCase() || "U"}
             </span>
           </div>
-          
+
           <AnimatePresence>
             {!isCollapsed && (
               <motion.div
@@ -274,10 +311,12 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
                 className="flex-1 min-w-0"
               >
                 <p className="text-sm font-semibold text-gray-900 truncate">
-                  {user?.name || 'User'}
+                  {user?.name || "User"}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  {user?.role?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User'}
+                  {user?.role
+                    ?.replace("-", " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase()) || "User"}
                 </p>
                 {user?.lab && (
                   <p className="text-xs text-healthcare-600 truncate">
@@ -295,43 +334,56 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           const isActive = activeItem === item.id;
-          
+
           return (
-            <motion.button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
-                isActive
-                  ? 'bg-healthcare-50 text-healthcare-700 border border-healthcare-200'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <IconComponent className={`w-5 h-5 ${isActive ? 'text-healthcare-600' : ''}`} />
-              
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.div
-                    variants={contentVariants}
-                    initial="collapsed"
-                    animate="expanded"
-                    exit="collapsed"
-                    className="flex-1 flex items-center justify-between"
-                  >
-                    <span className="font-medium">{item.label}</span>
-                    {item.badge && (
-                      <Badge
-                        variant={item.badge.variant}
-                        size="sm"
-                      >
-                        {item.badge.text}
-                      </Badge>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.button>
+            <div key={item.id} className="flex flex-col">
+              <motion.button
+                onClick={() => handleItemClick(item)}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
+                  isActive
+                    ? "bg-healthcare-50 text-healthcare-700 border border-healthcare-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <IconComponent
+                  className={`w-5 h-5 ${isActive ? "text-healthcare-600" : ""}`}
+                />
+
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.div
+                      variants={contentVariants}
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      className="flex-1 flex items-center justify-between"
+                    >
+                      <span className="font-medium">{item.label}</span>
+                      {item.badge && (
+                        <Badge variant={item.badge.variant} size="sm">
+                          {item.badge.text}
+                        </Badge>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Action button for menu item */}
+              {!isCollapsed && item.action && (
+                <motion.button
+                  onClick={item.action.onClick}
+                  className="ml-8 mt-1 flex items-center space-x-2 px-3 py-1.5 rounded-md text-left text-sm text-healthcare-600 hover:bg-healthcare-50 transition-all duration-200"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <item.action.icon className="w-4 h-4" />
+                  <span>{item.action.label}</span>
+                </motion.button>
+              )}
+            </div>
           );
         })}
       </nav>
@@ -375,7 +427,7 @@ const Sidebar = ({ isCollapsed, onToggle, className = '' }) => {
           variant="ghost"
           onClick={handleLogout}
           className={`w-full text-red-600 hover:text-red-700 hover:bg-red-50 ${
-            isCollapsed ? 'px-2' : 'justify-start'
+            isCollapsed ? "px-2" : "justify-start"
           }`}
           leftIcon={FiLogOut}
         >

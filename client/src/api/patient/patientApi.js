@@ -2,7 +2,17 @@ import api from '../../utils/axios';
 
 // Patient management API endpoints
 export const patientApi = {
-  // Get all patients
+  // Register new patient (comprehensive registration)
+  registerPatient: async (patientData) => {
+    try {
+      const response = await api.post('/patients/register', patientData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get all patients with pagination and filtering
   getAllPatients: async (params = {}) => {
     try {
       const response = await api.get('/patients', { params });
@@ -22,7 +32,7 @@ export const patientApi = {
     }
   },
 
-  // Create new patient
+  // Create new patient (basic creation)
   createPatient: async (patientData) => {
     try {
       const response = await api.post('/patients', patientData);
@@ -46,6 +56,28 @@ export const patientApi = {
   deletePatient: async (patientId) => {
     try {
       const response = await api.delete(`/patients/${patientId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Search patients
+  searchPatients: async (query, params = {}) => {
+    try {
+      const response = await api.get('/patients/search', { 
+        params: { q: query, ...params } 
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get patient statistics
+  getPatientStats: async (params = {}) => {
+    try {
+      const response = await api.get('/patients/stats', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -106,28 +138,6 @@ export const patientApi = {
   getPatientInvoices: async (patientId, params = {}) => {
     try {
       const response = await api.get(`/patients/${patientId}/invoices`, { params });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Search patients
-  searchPatients: async (query, params = {}) => {
-    try {
-      const response = await api.get('/patients/search', { 
-        params: { q: query, ...params } 
-      });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Get patient statistics
-  getPatientStats: async (params = {}) => {
-    try {
-      const response = await api.get('/patients/stats', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

@@ -6,10 +6,20 @@ import api from '../utils/axios';
  */
 
 export const patientApi = {
-  // Get all patients for a lab
-  getAllPatients: async (labId, params = {}) => {
+  // Register new patient (comprehensive registration)
+  registerPatient: async (patientData) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients`, { params });
+      const response = await api.post('/patients/register', patientData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to register patient' };
+    }
+  },
+
+  // Get all patients with pagination and filtering
+  getAllPatients: async (params = {}) => {
+    try {
+      const response = await api.get('/patients', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch patients' };
@@ -17,19 +27,19 @@ export const patientApi = {
   },
 
   // Get patient by ID
-  getPatientById: async (labId, patientId) => {
+  getPatientById: async (patientId) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients/${patientId}`);
+      const response = await api.get(`/patients/${patientId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch patient details' };
     }
   },
 
-  // Create new patient
-  createPatient: async (labId, patientData) => {
+  // Create new patient (basic creation)
+  createPatient: async (patientData) => {
     try {
-      const response = await api.post(`/labs/${labId}/patients`, patientData);
+      const response = await api.post('/patients', patientData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to create patient' };
@@ -37,9 +47,9 @@ export const patientApi = {
   },
 
   // Update patient
-  updatePatient: async (labId, patientId, patientData) => {
+  updatePatient: async (patientId, patientData) => {
     try {
-      const response = await api.put(`/labs/${labId}/patients/${patientId}`, patientData);
+      const response = await api.put(`/patients/${patientId}`, patientData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to update patient' };
@@ -47,9 +57,9 @@ export const patientApi = {
   },
 
   // Delete patient
-  deletePatient: async (labId, patientId) => {
+  deletePatient: async (patientId) => {
     try {
-      const response = await api.delete(`/labs/${labId}/patients/${patientId}`);
+      const response = await api.delete(`/patients/${patientId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to delete patient' };
@@ -57,10 +67,10 @@ export const patientApi = {
   },
 
   // Search patients
-  searchPatients: async (labId, searchTerm) => {
+  searchPatients: async (searchTerm, params = {}) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients/search`, {
-        params: { q: searchTerm }
+      const response = await api.get('/patients/search', {
+        params: { q: searchTerm, ...params }
       });
       return response.data;
     } catch (error) {
@@ -68,10 +78,20 @@ export const patientApi = {
     }
   },
 
-  // Get patient medical history
-  getPatientHistory: async (labId, patientId) => {
+  // Get patient statistics
+  getPatientStats: async (params = {}) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients/${patientId}/history`);
+      const response = await api.get('/patients/stats', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch patient statistics' };
+    }
+  },
+
+  // Get patient medical history
+  getPatientHistory: async (patientId) => {
+    try {
+      const response = await api.get(`/patients/${patientId}/history`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch patient history' };
@@ -79,9 +99,9 @@ export const patientApi = {
   },
 
   // Get patient reports
-  getPatientReports: async (labId, patientId) => {
+  getPatientReports: async (patientId) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients/${patientId}/reports`);
+      const response = await api.get(`/patients/${patientId}/reports`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch patient reports' };
@@ -89,9 +109,9 @@ export const patientApi = {
   },
 
   // Get patient invoices
-  getPatientInvoices: async (labId, patientId) => {
+  getPatientInvoices: async (patientId) => {
     try {
-      const response = await api.get(`/labs/${labId}/patients/${patientId}/invoices`);
+      const response = await api.get(`/patients/${patientId}/invoices`);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch patient invoices' };
@@ -99,9 +119,9 @@ export const patientApi = {
   },
 
   // Upload patient document
-  uploadPatientDocument: async (labId, patientId, formData) => {
+  uploadPatientDocument: async (patientId, formData) => {
     try {
-      const response = await api.post(`/labs/${labId}/patients/${patientId}/documents`, formData, {
+      const response = await api.post(`/patients/${patientId}/documents`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -109,16 +129,6 @@ export const patientApi = {
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to upload document' };
-    }
-  },
-
-  // Get patient statistics
-  getPatientStats: async (labId) => {
-    try {
-      const response = await api.get(`/labs/${labId}/patients/stats`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch patient statistics' };
     }
   }
 };

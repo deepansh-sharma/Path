@@ -10,6 +10,12 @@ import morgan from "morgan";
 import { connectToDatabase } from "./config/db.js";
 import router from "./routes/index.js";
 import exportRoutes from "./routes/export.js";
+import { 
+  globalErrorHandler, 
+  handleNotFound, 
+  handleUnhandledRejection, 
+  handleUncaughtException 
+} from "./middleware/errorHandler.js";
 
 console.log("🚀 Starting Pathology SaaS Server...");
 console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
@@ -17,107 +23,113 @@ console.log(`🔧 Port: ${process.env.PORT || 5000}`);
 
 const app = express();
 
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', handleUncaughtException);
+process.on('unhandledRejection', handleUnhandledRejection);
+
 // Global middlewares
 console.log("🛡️  Setting up security middleware...");
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(compression());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ 
+  limit: "1mb",
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid JSON format',
+        code: 'INVALID_JSON'
+      });
+      return;
+    }
+  }
+}));
+
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Enhanced logging middleware
-app.use(morgan("dev"));
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan("dev"));
+  app.use((req, res, next) => {
+    console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      // Don't log sensitive data
+      const sanitizedBody = { ...req.body };
+      if (sanitizedBody.password) sanitizedBody.password = '[REDACTED]';
+      if (sanitizedBody.token) sanitizedBody.token = '[REDACTED]';
+      console.log("📋 Request body:", JSON.stringify(sanitizedBody, null, 2));
+    }
+    next();
+  });
+} else {
+  app.use(morgan("combined"));
+}
+
+// Request ID middleware for tracking
 app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log("📋 Request body:", JSON.stringify(req.body, null, 2));
-  }
+  req.id = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  res.setHeader('X-Request-ID', req.id);
   next();
 });
 
 console.log("🛣️  Setting up API routes...");
 // Mount API routes
-console.log("Mounting API routes...");
 app.use("/api", router);
 app.use("/api/export", exportRoutes);
 
-// Basic root
+// Health check endpoint
 app.get("/", (req, res) => {
   console.log("✅ Health check endpoint accessed");
   res.json({
+    success: true,
     status: "ok",
     service: "pathology-saas-server",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
   });
 });
 
-// Not found handler
-app.use((req, res, next) => {
-  console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
-  res.status(404).json({
-    success: false,
-    error: "Route not found",
-    path: req.path,
-    method: req.method,
+// API health check
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "healthy",
     timestamp: new Date().toISOString(),
+    services: {
+      database: "connected", // This could be dynamic based on actual DB status
+      server: "running"
+    }
   });
 });
 
-// Enhanced global error handler
-app.use((err, req, res, next) => {
-  console.error("💥 Global Error Handler Triggered:");
-  console.error("Error message:", err.message);
-  console.error("Error stack:", err.stack);
-  console.error("Request details:", {
-    method: req.method,
-    path: req.path,
-    body: req.body,
-    params: req.params,
-    query: req.query,
-    headers: req.headers,
-  });
+// Handle 404 for undefined routes
+app.use(handleNotFound);
 
-  // Determine error type and status
-  let status = err.status || err.statusCode || 500;
-  let message = err.message || "Internal Server Error";
-
-  // Handle specific error types
-  if (err.name === "ValidationError") {
-    status = 400;
-    message = "Validation Error";
-    console.log("🔍 Validation Error Details:", err.errors);
-  } else if (err.name === "CastError") {
-    status = 400;
-    message = "Invalid ID format";
-    console.log("🔍 Cast Error Details:", err.value);
-  } else if (err.code === 11000) {
-    status = 409;
-    message = "Duplicate entry";
-    console.log("🔍 Duplicate Key Error:", err.keyValue);
-  } else if (err.name === "JsonWebTokenError") {
-    status = 401;
-    message = "Invalid token";
-  } else if (err.name === "TokenExpiredError") {
-    status = 401;
-    message = "Token expired";
-  }
-
-  // Send error response
-  const errorResponse = {
-    success: false,
-    error: message,
-    timestamp: new Date().toISOString(),
-    path: req.path,
-  };
-
-  // Include stack trace in development
-  if (process.env.NODE_ENV === "development") {
-    errorResponse.stack = err.stack;
-    errorResponse.details = err;
-  }
-
-  res.status(status).json(errorResponse);
-});
+// Global error handling middleware (must be last)
+app.use(globalErrorHandler);
 
 // Graceful shutdown handlers
 process.on("SIGTERM", () => {
