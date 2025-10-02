@@ -82,3 +82,4 @@ const LoadingSkeleton = ({ className, ...props }) => {
 };
 
 export { LoadingSpinner, InlineSpinner, LoadingSkeleton };
+export default LoadingSpinner;

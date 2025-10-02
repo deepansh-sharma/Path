@@ -10,12 +10,51 @@ import {
   getTestStats,
   updateTestPricing,
   bulkUpdateTests,
-  getTestQualityControl as getQualityControlData
+  getTestQualityControl as getQualityControlData,
+  cloneTest,
+  toggleTestStatus,
+  bulkDeleteTests,
+  bulkUpdateTestStatus,
+  exportTests,
+  importTests,
+  getPopularTests,
+  searchTests,
+  getDepartments,
+  getSpecimenTypes,
+  validateTestCode,
+  getTestTemplates,
+  getTestReagents,
+  getTestHistory,
+  submitTestForApproval,
+  approveTest,
+  rejectTest
 } from '../controllers/testController.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 import { validateRequest } from '../middleware/validation.js';
+import { rbac } from '../middleware/rbac.js';
+import multer from 'multer';
 
 const router = express.Router();
+
+// Configure multer for file uploads (CSV/JSON import)
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only CSV and JSON files
+    const allowedTypes = /csv|json/;
+    const extname = allowedTypes.test(file.originalname.split('.').pop().toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/json' || file.mimetype === 'text/csv';
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only CSV and JSON files are allowed"));
+    }
+  },
+});
 
 // Apply authentication to all routes
 router.use(authenticate);
@@ -270,29 +309,94 @@ const idValidation = [
     .withMessage('Invalid test ID')
 ];
 
-// Routes
-
-// GET /api/tests - Get all tests with filtering and pagination
+// Test management routes with role-based access control
 router.get('/', 
   queryValidation,
   validateRequest,
-  authorize(['admin', 'lab_manager', 'technician', 'test_manager']),
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
   getTests
 );
 
-// GET /api/tests/categories - Get test categories
+router.get('/popular',
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
+  getPopularTests
+);
+
+router.get('/search',
+  query('q').notEmpty().withMessage('Search query is required'),
+  validateRequest,
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
+  searchTests
+);
+
+router.get('/departments',
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
+  getDepartments
+);
+
+router.get('/specimen-types',
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
+  getSpecimenTypes
+);
+
+router.get('/templates',
+  rbac(['lab_admin', 'technician'], ['manage_tests']),
+  getTestTemplates
+);
+
+router.get('/reagents',
+  rbac(['lab_admin', 'technician'], ['manage_tests']),
+  getTestReagents
+);
+
 router.get('/categories',
-  authorize(['admin', 'lab_manager', 'technician', 'test_manager']),
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
   getTestCategories
 );
 
-// GET /api/tests/stats - Get test statistics
 router.get('/stats',
-  authorize(['admin', 'lab_manager', 'test_manager']),
+  rbac(['lab_admin'], ['view_analytics']),
   getTestStats
 );
 
-// GET /api/tests/quality-control - Get quality control data
+router.get('/validate-code',
+  query('code').notEmpty().withMessage('Test code is required'),
+  validateRequest,
+  rbac(['lab_admin', 'technician'], ['manage_tests']),
+  validateTestCode
+);
+
+router.get('/export',
+  query('testIds').optional().isString().withMessage('Test IDs must be a comma-separated string'),
+  query('format').optional().isIn(['csv', 'json']).withMessage('Invalid export format'),
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  exportTests
+);
+
+router.post('/import',
+  upload.single('file'),
+  rbac(['lab_admin'], ['manage_tests']),
+  importTests
+);
+
+router.post('/bulk-delete',
+  body('testIds').isArray({ min: 1 }).withMessage('Test IDs array is required'),
+  body('testIds.*').isMongoId().withMessage('Invalid test ID'),
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  bulkDeleteTests
+);
+
+router.post('/bulk-status',
+  body('testIds').isArray({ min: 1 }).withMessage('Test IDs array is required'),
+  body('testIds.*').isMongoId().withMessage('Invalid test ID'),
+  body('status').isIn(['active', 'inactive', 'draft', 'pending_approval']).withMessage('Invalid status'),
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  bulkUpdateTestStatus
+);
+
 router.get('/quality-control',
   query('category')
     .optional()
@@ -311,58 +415,100 @@ router.get('/quality-control',
     .isISO8601()
     .withMessage('End date must be a valid date'),
   validateRequest,
-  authorize(['admin', 'lab_manager', 'quality_manager']),
-  getQualityControlData
+  rbac(['lab_admin'], ['manage_tests']),
+  getTestQualityControl
 );
 
-// GET /api/tests/:id - Get single test
+router.get('/:id/history',
+  idValidation,
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  getTestHistory
+);
+
 router.get('/:id',
   idValidation,
   validateRequest,
-  authorize(['admin', 'lab_manager', 'technician', 'test_manager']),
+  rbac(['lab_admin', 'technician', 'staff'], ['manage_tests', 'view_tests']),
   getTest
 );
 
-// POST /api/tests - Create new test
+// Test CRUD operations - Only lab_admin can create/update/delete tests
 router.post('/',
   createTestValidation,
   validateRequest,
-  authorize(['admin', 'lab_manager', 'test_manager']),
+  rbac(['lab_admin'], ['manage_tests']),
   createTest
 );
 
-// POST /api/tests/bulk-update - Bulk update tests
-router.post('/bulk-update',
-  bulkUpdateValidation,
-  validateRequest,
-  authorize(['admin', 'lab_manager', 'test_manager']),
-  bulkUpdateTests
-);
-
-// PUT /api/tests/:id - Update test
 router.put('/:id',
   idValidation,
   updateTestValidation,
   validateRequest,
-  authorize(['admin', 'lab_manager', 'test_manager']),
+  rbac(['lab_admin'], ['manage_tests']),
   updateTest
 );
 
-// PUT /api/tests/:id/pricing - Update test pricing
+router.delete('/:id',
+  idValidation,
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  deleteTest
+);
+
+// Test status management - Lab admin and technicians can manage status
+router.patch('/:id/toggle-status',
+  idValidation,
+  validateRequest,
+  rbac(['lab_admin', 'technician'], ['manage_tests']),
+  toggleTestStatus
+);
+
+router.post('/:id/clone',
+  idValidation,
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  cloneTest
+);
+
+// Test approval workflow - Staff can submit, only lab_admin can approve/reject
+router.post('/:id/submit-approval',
+  idValidation,
+  validateRequest,
+  rbac(['technician', 'staff'], ['manage_tests']),
+  submitTestForApproval
+);
+
+router.post('/:id/approve',
+  idValidation,
+  body('comments').optional().trim().isLength({ max: 500 }).withMessage('Comments must not exceed 500 characters'),
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  approveTest
+);
+
+router.post('/:id/reject',
+  idValidation,
+  body('reason').notEmpty().withMessage('Rejection reason is required'),
+  body('comments').optional().trim().isLength({ max: 500 }).withMessage('Comments must not exceed 500 characters'),
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  rejectTest
+);
+
+router.post('/bulk-update',
+  bulkUpdateValidation,
+  validateRequest,
+  rbac(['lab_admin'], ['manage_tests']),
+  bulkUpdateTests
+);
+
 router.put('/:id/pricing',
   idValidation,
   pricingUpdateValidation,
   validateRequest,
-  authorize(['admin', 'lab_manager', 'finance_manager']),
+  rbac(['lab_admin'], ['manage_tests']),
   updateTestPricing
-);
-
-// DELETE /api/tests/:id - Delete test
-router.delete('/:id',
-  idValidation,
-  validateRequest,
-  authorize(['admin', 'lab_manager']),
-  deleteTest
 );
 
 export default router;

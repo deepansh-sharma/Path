@@ -58,3 +58,5 @@ export const TabsContent = ({ value, children, className = "" }) => {
     </div>
   );
 };
+
+export default Tabs;

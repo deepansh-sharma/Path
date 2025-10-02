@@ -165,3 +165,4 @@ export const toast = {
 };
 
 export { Toast, ToastContainer };
+export default Toast;

@@ -1,11 +1,12 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import LabAdminDashboard from '../features/dashboard/pages/LabAdminDashboard';
-import PatientManagement from '../features/patients/pages/PatientManagement';
-import SampleTracking from '../pages/sampletracking';
-import StaffManagement from '../pages/StaffManagement';
-import ReportManagement from '../features/reports/pages/ReportManagement';
-import InvoiceManagement from '../features/invoices/pages/InvoiceManagement';
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import LabAdminDashboard from "../features/dashboard/pages/LabAdminDashboard";
+import PatientManagement from "../features/patients/pages/PatientManagement";
+import SampleTracking from "../pages/sampletracking";
+import StaffManagement from "../pages/StaffManagement";
+import ReportManagement from "../features/reports/pages/ReportManagement";
+import InvoiceManagement from "../features/invoices/pages/InvoiceManagement";
+import TestManagement from "../features/tests/pages/TestManagement";
 
 // Lab Admin Routes
 const LabAdminRoutes = () => {
@@ -15,6 +16,7 @@ const LabAdminRoutes = () => {
       <Route path="patients" element={<PatientManagement />} />
       <Route path="samples" element={<SampleTracking />} />
       <Route path="staff" element={<StaffManagement />} />
+      <Route path="tests" element={<TestManagement />} />
       <Route path="reports" element={<ReportManagement />} />
       <Route path="invoices" element={<InvoiceManagement />} />
       <Route

@@ -51,3 +51,5 @@ export const DialogClose = ({ onClick, className = "" }) => {
     </button>
   );
 };
+
+export default Dialog;

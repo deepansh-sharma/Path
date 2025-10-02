@@ -259,3 +259,235 @@ export const ownerOrAdmin = (resourceUserIdField = "userId") => {
 
 // Export default rbac function for backward compatibility
 export default rbac;
+
+/**
+ * Test-specific RBAC middleware
+ * Handles test management permissions with granular control
+ */
+export const testRBAC = (action) => {
+  return (req, res, next) => {
+    const userRole = req.user.role;
+    const labId = req.user.labId;
+
+    // Define test-specific permissions for each role
+    const testPermissions = {
+      super_admin: {
+        read: true,
+        create: true,
+        update: true,
+        delete: true,
+        approve: true,
+        bulk_operations: true,
+        export: true,
+        import: true,
+        manage_templates: true,
+        view_history: true,
+        quality_control: true,
+        manage_pricing: true
+      },
+      lab_admin: {
+        read: true,
+        create: true,
+        update: true,
+        delete: true,
+        approve: true,
+        bulk_operations: true,
+        export: true,
+        import: true,
+        manage_templates: true,
+        view_history: true,
+        quality_control: true,
+        manage_pricing: true
+      },
+      technician: {
+        read: true,
+        create: false,
+        update: false,
+        delete: false,
+        approve: false,
+        bulk_operations: false,
+        export: false,
+        import: false,
+        manage_templates: false,
+        view_history: false,
+        quality_control: true,
+        manage_pricing: false
+      },
+      receptionist: {
+        read: true,
+        create: false,
+        update: false,
+        delete: false,
+        approve: false,
+        bulk_operations: false,
+        export: false,
+        import: false,
+        manage_templates: false,
+        view_history: false,
+        quality_control: false,
+        manage_pricing: false
+      },
+      finance: {
+        read: true,
+        create: false,
+        update: false,
+        delete: false,
+        approve: false,
+        bulk_operations: false,
+        export: true,
+        import: false,
+        manage_templates: false,
+        view_history: false,
+        quality_control: false,
+        manage_pricing: true
+      },
+      staff: {
+        read: true,
+        create: false,
+        update: false,
+        delete: false,
+        approve: false,
+        bulk_operations: false,
+        export: false,
+        import: false,
+        manage_templates: false,
+        view_history: false,
+        quality_control: true,
+        manage_pricing: false
+      }
+    };
+
+    // Check if user has permission for the requested action
+    const userPermissions = testPermissions[userRole];
+    
+    if (!userPermissions) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid user role for test operations'
+      });
+    }
+
+    if (!userPermissions[action]) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. You don't have permission to ${action} tests`
+      });
+    }
+
+    // Special handling for pricing updates
+    if (action === 'update' && req.path.includes('/pricing')) {
+      if (!userPermissions.manage_pricing) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You cannot manage test pricing'
+        });
+      }
+    }
+
+    // Add lab context for multi-tenant access
+    if (userRole !== 'super_admin') {
+      req.labContext = {
+        labId: labId,
+        restrictToLab: true
+      };
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to validate bulk operations for tests
+ */
+export const validateTestBulkOperation = (req, res, next) => {
+  const { testIds } = req.body;
+  const userRole = req.user.role;
+
+  if (!Array.isArray(testIds) || testIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Test IDs array is required'
+    });
+  }
+
+  // Limit bulk operations based on role
+  const maxBulkSize = {
+    super_admin: 1000,
+    lab_admin: 500,
+    technician: 0,
+    receptionist: 0,
+    finance: 0,
+    staff: 0
+  };
+
+  const maxAllowed = maxBulkSize[userRole] || 0;
+
+  if (testIds.length > maxAllowed) {
+    return res.status(400).json({
+      success: false,
+      message: `Bulk operation limited to ${maxAllowed} tests for your role`
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check test ownership/access within lab context
+ */
+export const checkTestAccess = async (req, res, next) => {
+  try {
+    const testId = req.params.id;
+    const userRole = req.user.role;
+    const userLabId = req.user.labId;
+
+    if (!testId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Test ID is required'
+      });
+    }
+
+    // Import mongoose dynamically
+    const mongoose = (await import('mongoose')).default;
+    
+    if (!mongoose.Types.ObjectId.isValid(testId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid test ID'
+      });
+    }
+
+    // Super admin has access to all tests
+    if (userRole === 'super_admin') {
+      return next();
+    }
+
+    // Check if test belongs to user's lab
+    const Test = mongoose.model('Test');
+    const test = await Test.findById(testId).select('labId');
+
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: 'Test not found'
+      });
+    }
+
+    if (test.labId.toString() !== userLabId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Test belongs to a different lab'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Check test access error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify test access',
+      error: error.message
+    });
+  }
+};

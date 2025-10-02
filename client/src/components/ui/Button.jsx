@@ -34,6 +34,8 @@ const Button = React.forwardRef(
         "bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500 active:bg-yellow-800",
       danger:
         "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 active:bg-red-800",
+      destructive:
+        "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 active:bg-red-800",
       outline:
         "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500 active:bg-blue-100",
       ghost:
@@ -48,6 +50,8 @@ const Button = React.forwardRef(
       lg: "px-6 py-3 text-base",
       xl: "px-8 py-4 text-lg",
     };
+
+    const iconSizes = { xs: 12, sm: 14, md: 16, lg: 18, xl: 20 };
 
     const fullWidthClass = fullWidth ? "w-full" : "";
 
@@ -92,6 +96,19 @@ const Button = React.forwardRef(
       </svg>
     );
 
+    // Safely render icon passed as element or component type
+    const renderIcon = (icon) => {
+      if (!icon) return null;
+      const sizeProp = { size: iconSizes[size] || 16 };
+      if (React.isValidElement(icon)) {
+        return React.cloneElement(icon, sizeProp);
+      }
+      if (typeof icon === "function") {
+        return React.createElement(icon, sizeProp);
+      }
+      return icon; // already a node
+    };
+
     return (
       <motion.button
         ref={ref}
@@ -105,11 +122,11 @@ const Button = React.forwardRef(
       >
         {loading && <LoadingSpinner />}
         {!loading && leftIcon && (
-          <span className="mr-2 flex-shrink-0">{leftIcon}</span>
+          <span className="mr-2 flex-shrink-0">{renderIcon(leftIcon)}</span>
         )}
         <span className={loading ? "opacity-0" : ""}>{children}</span>
         {!loading && rightIcon && (
-          <span className="ml-2 flex-shrink-0">{rightIcon}</span>
+          <span className="ml-2 flex-shrink-0">{renderIcon(rightIcon)}</span>
         )}
       </motion.button>
     );
@@ -167,6 +184,20 @@ const IconButton = React.forwardRef(
       xl: "p-4",
     };
 
+    // Ensure icon passed as element or component is rendered correctly
+    const iconSizes = { xs: 12, sm: 14, md: 16, lg: 18, xl: 20 };
+    const renderIcon = () => {
+      if (!icon) return null;
+      const sizeProp = { size: iconSizes[size] || 16 };
+      if (React.isValidElement(icon)) {
+        return React.cloneElement(icon, sizeProp);
+      }
+      if (typeof icon === "function") {
+        return React.createElement(icon, sizeProp);
+      }
+      return icon; // already a node
+    };
+
     return (
       <Button
         ref={ref}
@@ -174,7 +205,7 @@ const IconButton = React.forwardRef(
         className={`${iconSizeClasses[size]} ${className}`}
         {...props}
       >
-        {icon}
+        {renderIcon()}
       </Button>
     );
   }
@@ -191,6 +222,7 @@ Button.propTypes = {
     "success",
     "warning",
     "danger",
+    "destructive",
     "outline",
     "ghost",
     "link",
@@ -199,8 +231,8 @@ Button.propTypes = {
   disabled: PropTypes.bool,
   loading: PropTypes.bool,
   fullWidth: PropTypes.bool,
-  leftIcon: PropTypes.node,
-  rightIcon: PropTypes.node,
+  leftIcon: PropTypes.oneOfType([PropTypes.node, PropTypes.elementType]),
+  rightIcon: PropTypes.oneOfType([PropTypes.node, PropTypes.elementType]),
   onClick: PropTypes.func,
   type: PropTypes.oneOf(["button", "submit", "reset"]),
 };
@@ -212,7 +244,7 @@ ButtonGroup.propTypes = {
 };
 
 IconButton.propTypes = {
-  icon: PropTypes.node.isRequired,
+  icon: PropTypes.oneOfType([PropTypes.node, PropTypes.elementType]).isRequired,
   className: PropTypes.string,
   size: PropTypes.oneOf(["xs", "sm", "md", "lg", "xl"]),
   variant: PropTypes.oneOf([
@@ -228,3 +260,4 @@ IconButton.propTypes = {
 };
 
 export { Button, ButtonGroup, IconButton };
+export default Button;

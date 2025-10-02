@@ -27,12 +27,25 @@ import {
   FiCalendar,
   FiMail,
   FiPhone,
+  FiLayers,
+  FiTool,
+  FiPlus,
+  FiGrid,
+  FiBookOpen,
+  FiZap,
 } from "react-icons/fi";
 
 const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
   const { user, logout, hasPermission, hasRole, getPermissions } = useAuth();
   const navigate = useNavigate();
   const [activeItem, setActiveItem] = useState("dashboard");
+  // Determine if the current user is a lab-level role (not super-admin)
+  const isLabRole =
+    hasRole("lab_admin") ||
+    hasRole("lab-admin") ||
+    hasRole("technician") ||
+    hasRole("receptionist") ||
+    hasRole("finance");
 
   // Define menu items based on user roles
   const getMenuItems = () => {
@@ -78,7 +91,10 @@ const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
     console.log("User role:", user?.role);
     console.log("hasRole lab_admin:", hasRole("lab_admin"));
     console.log("hasRole lab-admin:", hasRole("lab-admin"));
-    console.log("hasPermission manage-patients:", hasPermission("manage-patients"));
+    console.log(
+      "hasPermission manage-patients:",
+      hasPermission("manage-patients")
+    );
     console.log("User permissions:", getPermissions());
 
     if (
@@ -106,6 +122,17 @@ const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
           label: "Sample Tracking",
           icon: FiActivity,
           path: "/samples",
+          badge: { text: "New", variant: "success" },
+        });
+      }
+
+      // Test Management
+      if (hasPermission("manage-tests") || hasPermission("create-tests")) {
+        baseItems.push({
+          id: "tests",
+          label: "Test Management",
+          icon: FiActivity,
+          path: "/tests",
           badge: { text: "New", variant: "success" },
         });
       }
@@ -191,18 +218,23 @@ const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
 
   const handleItemClick = (item) => {
     setActiveItem(item.id);
-    
+
     // Build the correct path based on user role
     let fullPath = item.path;
-    
-    if (hasRole("super_admin")) {
+
+    if (hasRole("super-admin")) {
       fullPath = `/super-admin${item.path}`;
     } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
       fullPath = `/lab-admin${item.path}`;
-    } else if (hasRole("staff") || hasRole("technician") || hasRole("receptionist") || hasRole("finance")) {
+    } else if (
+      hasRole("staff") ||
+      hasRole("technician") ||
+      hasRole("receptionist") ||
+      hasRole("finance")
+    ) {
       fullPath = `/staff${item.path}`;
     }
-    
+
     console.log("Navigating to:", fullPath);
     navigate(fullPath);
   };
@@ -331,6 +363,187 @@ const Sidebar = ({ isCollapsed, onToggle, className = "" }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* Test Creation Section - Only for lab roles with test management permissions */}
+        {isLabRole && (hasPermission("manage-tests") || hasPermission("create-tests")) && (
+          <div className="mb-6">
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  variants={contentVariants}
+                  initial="collapsed"
+                  animate="expanded"
+                  exit="collapsed"
+                  className="mb-3"
+                >
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3">
+                    Test Management
+                  </h3>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
+            <div className="space-y-1">
+              {/* Quick Create Test */}
+              <motion.button
+                onClick={() => {
+                  let fullPath = "/tests?tab=create";
+                  if (hasRole("super-admin")) {
+                    fullPath = `/super-admin${fullPath}`;
+                  } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
+                    fullPath = `/lab-admin${fullPath}`;
+                  } else if (
+                    hasRole("staff") ||
+                    hasRole("technician") ||
+                    hasRole("receptionist") ||
+                    hasRole("finance")
+                  ) {
+                    fullPath = `/staff${fullPath}`;
+                  }
+                  navigate(fullPath);
+                }}
+                className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 bg-gradient-to-r from-healthcare-500 to-healthcare-600 text-white hover:from-healthcare-600 hover:to-healthcare-700 shadow-sm"
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <FiPlus className="w-5 h-5" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.div
+                      variants={contentVariants}
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      className="flex-1"
+                    >
+                      <span className="font-semibold">Create New Test</span>
+                      <p className="text-xs text-healthcare-100 mt-0.5">
+                        Quick test setup
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Test Categories */}
+              <motion.button
+                onClick={() => {
+                  let fullPath = "/tests";
+                  if (hasRole("super-admin")) {
+                    fullPath = `/super-admin${fullPath}`;
+                  } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
+                    fullPath = `/lab-admin${fullPath}`;
+                  } else if (
+                    hasRole("staff") ||
+                    hasRole("technician") ||
+                    hasRole("receptionist") ||
+                    hasRole("finance")
+                  ) {
+                    fullPath = `/staff${fullPath}`;
+                  }
+                  navigate(fullPath);
+                }}
+                className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-healthcare-50 hover:text-healthcare-700 border border-transparent hover:border-healthcare-200"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <FiGrid className="w-4 h-4" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span
+                      variants={contentVariants}
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      className="text-sm font-medium"
+                    >
+                      Manage Categories
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Test Templates */}
+              <motion.button
+                onClick={() => {
+                  let fullPath = "/tests";
+                  if (hasRole("super-admin")) {
+                    fullPath = `/super-admin${fullPath}`;
+                  } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
+                    fullPath = `/lab-admin${fullPath}`;
+                  } else if (
+                    hasRole("staff") ||
+                    hasRole("technician") ||
+                    hasRole("receptionist") ||
+                    hasRole("finance")
+                  ) {
+                    fullPath = `/staff${fullPath}`;
+                  }
+                  navigate(fullPath);
+                }}
+                className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-healthcare-50 hover:text-healthcare-700 border border-transparent hover:border-healthcare-200"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <FiBookOpen className="w-4 h-4" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span
+                      variants={contentVariants}
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      className="text-sm font-medium"
+                    >
+                      Test Templates
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              {/* Quick Actions */}
+              <motion.button
+                onClick={() => {
+                  let fullPath = "/tests";
+                  if (hasRole("super-admin")) {
+                    fullPath = `/super-admin${fullPath}`;
+                  } else if (hasRole("lab_admin") || hasRole("lab-admin")) {
+                    fullPath = `/lab-admin${fullPath}`;
+                  } else if (
+                    hasRole("staff") ||
+                    hasRole("technician") ||
+                    hasRole("receptionist") ||
+                    hasRole("finance")
+                  ) {
+                    fullPath = `/staff${fullPath}`;
+                  }
+                  navigate(fullPath);
+                }}
+                className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-healthcare-50 hover:text-healthcare-700 border border-transparent hover:border-healthcare-200"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <FiZap className="w-4 h-4" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span
+                      variants={contentVariants}
+                      initial="collapsed"
+                      animate="expanded"
+                      exit="collapsed"
+                      className="text-sm font-medium"
+                    >
+                      Bulk Import
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </div>
+
+            {/* Divider */}
+            <div className="my-4 border-t border-gray-200"></div>
+          </div>
+        )}
+
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           const isActive = activeItem === item.id;

@@ -12,3 +12,5 @@ export const Label = ({ htmlFor, children, className = "", required = false, ...
     </label>
   );
 };
+
+export default Label;

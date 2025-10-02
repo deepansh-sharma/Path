@@ -229,8 +229,10 @@ export const AuthProvider = ({ children }) => {
         "manage-invoices",
         "view-lab-analytics",
         "configure-lab",
+        "manage-tests",
       ],
-      "lab_admin": [ // Handle underscore format from backend
+      lab_admin: [
+        // Handle underscore format from backend
         "manage-lab-staff",
         "manage-patients",
         "manage-samples",
@@ -238,6 +240,7 @@ export const AuthProvider = ({ children }) => {
         "manage-invoices",
         "view-lab-analytics",
         "configure-lab",
+        "manage-tests",
       ],
       technician: ["manage-samples", "create-reports", "view-patients"],
       receptionist: [

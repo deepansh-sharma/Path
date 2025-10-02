@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "../../utils/cn";
 
+// Input component (update icon rendering)
 const Input = React.forwardRef(
   (
     {
@@ -17,6 +18,19 @@ const Input = React.forwardRef(
   ) => {
     const inputId = React.useId();
 
+    // Safely render icon passed as element or component type
+    const renderIcon = (icon) => {
+      if (!icon) return null;
+      const sizeProp = { size: 16 };
+      if (React.isValidElement(icon)) {
+        return React.cloneElement(icon, sizeProp);
+      }
+      if (typeof icon === "function") {
+        return React.createElement(icon, sizeProp);
+      }
+      return icon; // already a node
+    };
+
     return (
       <div className="w-full">
         {label && (
@@ -31,7 +45,9 @@ const Input = React.forwardRef(
         <div className="relative">
           {leftIcon && (
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <div className="h-5 w-5 text-gray-400">{leftIcon}</div>
+              <div className="h-5 w-5 text-gray-400">
+                {renderIcon(leftIcon)}
+              </div>
             </div>
           )}
 
@@ -54,7 +70,9 @@ const Input = React.forwardRef(
 
           {rightIcon && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <div className="h-5 w-5 text-gray-400">{rightIcon}</div>
+              <div className="h-5 w-5 text-gray-400">
+                {renderIcon(rightIcon)}
+              </div>
             </div>
           )}
         </div>
@@ -77,3 +95,4 @@ const Input = React.forwardRef(
 Input.displayName = "Input";
 
 export { Input };
+export default Input;
